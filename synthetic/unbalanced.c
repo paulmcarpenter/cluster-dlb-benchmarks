@@ -1,6 +1,6 @@
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 // #include <limits.h>
 #include <string.h>
 #include <time.h>
@@ -22,7 +22,7 @@ void wait(const struct timespec ts)
 int main( int argc, char *argv[] )
 {
 	int comm;							  // Application's communicator
-	int id, ranks;						  // Application (virtual) rank and number of ranks
+	int id, num_appranks;				  // Application (virtual) rank and number of ranks
 	int task;							  // Counters
 	struct timeval time_start, time_end;  // For timing each iteration
 
@@ -33,24 +33,24 @@ int main( int argc, char *argv[] )
 
 	// Get my (virtual) rank
 	MPI_Comm_rank(comm, &id);
-	// Get the total number of (virtual) ranks;
-	MPI_Comm_size(comm, &ranks);
+	// Get the total number of appranks
+	MPI_Comm_size(comm, &num_appranks);
 
 	// Check number of arguments
-	if (argc < 4 + ranks) {
+	if (argc < 5 + num_appranks) {
 		if (id == 0) {
-			fprintf(stderr, "Usage: %s <num iterations> <tasks/rank> <bytes/task> <ms_per_task_rank1> ...\n", argv[0]);
+			fprintf(stderr, "Usage: %s <num iterations> <tasks/rank> <bytes/task> <noflush> <ms_per_task_rank1> ...\n", argv[0]);
 		}
 		return 1;
 	}
 	
 	// Get number of iterations and number of tasks
+	char *endPtr;
 	int niter = atoi(argv[1]);
 	int ntasks = atoi(argv[2]);
-	
-	// Get bytes per task
-	char *endPtr;
 	size_t bytes_per_task = strtoll(argv[3], &endPtr, 10);
+	int noflush = atoi(argv[4]);
+
 	switch (*endPtr) {
 		case '\0': break;
 		case 'k':  bytes_per_task *= 1000; break;
@@ -103,7 +103,12 @@ int main( int argc, char *argv[] )
 				wait(ts);
 			}
 		}
-		#pragma oss taskwait
+
+		if (noflush) {
+			#pragma oss taskwait noflush
+		} else {
+			#pragma oss taskwait
+		}
 
 		// Barrier
 		MPI_Barrier(comm);
