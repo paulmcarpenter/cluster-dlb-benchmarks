@@ -119,7 +119,11 @@ int main( int argc, char *argv[] )
 			int p, t;
 			gettimeofday(&time_end, NULL);
 			double secs = (time_end.tv_sec - time_start.tv_sec) + (time_end.tv_usec - time_start.tv_usec) / 1000000.0;
-			printf("%3.2f sec\n", secs);
+			printf("# %s appranks=%d deg=%d ", argv[0], num_appranks, nanos6_get_num_cluster_iranks());
+			for (int i=1; i<argc; i++) {
+				printf("%s ", argv[i]);
+			}
+			printf(": iter=%d time=%3.2f sec\n", iter, secs);
 		}
 	}
 
