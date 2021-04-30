@@ -56,12 +56,75 @@ def format_mem(x):
     else:
         return ('%d' % x) + 'kMGTPE'[num-1]
 
+def get_values(results, field):
+	values = set([])
+	for r, times in results:
+		values.add(r[field])
+	return sorted(values)
 
 
 def generate_plots(results):
-	print(results)
 	print('generate_plots')
-	return 0
+
+	# Keep only results for correct executable
+	results = [ (r,times) for (r,times) in results if r['executable'] == 'build/synthetic_unbalanced']
+
+	policies = get_values(results, 'policy')
+	degrees = get_values(results, 'degree')
+	apprankss = get_values(results, 'appranks')
+	print('policies', policies)
+	print('degrees', degrees)
+
+	for r, times in results:
+		print(r, times)
+	
+	for appranks in apprankss:
+		for policy in policies:
+			for degree in degrees:
+				for noflush in [0,1]:
+					for lewi in ['true', 'false']:
+						for drom in ['true', 'false']: 
+							noflush_str = 'noflush' if noflush==1 else 'flush'
+							if lewi == 'true':
+								if drom == 'true':
+									dlb_str = 'dlb'
+								else:
+									dlb_str = 'lewi'
+							else:
+								if drom == 'true':	
+									dlb_str = 'drom'
+								else:
+									dlb_str = 'nodlb'
+							title = 'unbalanced-sweep-appranks%d-%s-deg%d-%s-%s.pdf' % (appranks, policy, degree, noflush_str, dlb_str)
+
+							res = [ (r,times) for (r,times) in results \
+										if r['appranks'] == appranks \
+										   and r['degree'] == degree \
+										   and int(r['params'][3]) == noflush \
+										   and r['lewi'] == lewi \
+										   and r['drom'] == drom \
+										   and r['policy'] == policy]
+							print(title)
+							for s in res:
+								print(' ', s)
+															
+
+#                        with PdfPages('sweep-%s-%s-%s.pdf' % (program, policy, degree)) as pdf:
+#                            for mem in mems:
+#                                xx = []
+#                                yy = []
+#                                for iter_num in range(0,max_iter):
+#                                    key = (program, policy, degree, mem, iter_num)
+#                                    if key in mean_results:
+#                                        xx.append(iter_num)
+#                                        yy.append(mean_results[key])
+#                                plt.plot(xx, yy, label = format_mem(mem))
+#                            plt.title('%s degree %d: Execution time per iteration' % (policy, degree))
+#                            plt.xlabel('Iteration number')
+#                            plt.ylabel('Execution time (s)')
+#                            plt.legend()
+#                            pdf.savefig()
+#                            plt.close()
 
 #	dromlewi_re = re.compile(r'NANOS6_ENABLE_DROM = ([01]) NANOS6_ENABLE_LEWI = ([01])')
 #
@@ -150,22 +213,6 @@ def generate_plots(results):
 #                            break
 #
 #                    if haveData:
-#                        with PdfPages('sweep-%s-%s-%s.pdf' % (program, policy, degree)) as pdf:
-#                            for mem in mems:
-#                                xx = []
-#                                yy = []
-#                                for iter_num in range(0,max_iter):
-#                                    key = (program, policy, degree, mem, iter_num)
-#                                    if key in mean_results:
-#                                        xx.append(iter_num)
-#                                        yy.append(mean_results[key])
-#                                plt.plot(xx, yy, label = format_mem(mem))
-#                            plt.title('%s degree %d: Execution time per iteration' % (policy, degree))
-#                            plt.xlabel('Iteration number')
-#                            plt.ylabel('Execution time (s)')
-#                            plt.legend()
-#                            pdf.savefig()
-#                            plt.close()
 
 
 if __name__ == '__main__':

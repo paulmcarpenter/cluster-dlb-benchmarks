@@ -88,7 +88,8 @@ def get_file_results(filename, results):
 	with open(os.path.join(job_output_dir, filename)) as fp:
 		command = fp.readline()
 		drom = get_from_command('dlb.enable_drom=(true|false)', 'dlb.enable_drom', command, filename)
-		lewi = get_from_command('dlb.enable_lewi=(true|false)', 'dlb.enable_drom', command, filename)
+		lewi = get_from_command('dlb.enable_lewi=(true|false)', 'dlb.enable_lewi', command, filename)
+		policy = get_from_command(' --(local|global)', 'policy', command, filename)
 
 		for line in fp.readlines():
 			m = re_result.match(line)
@@ -96,10 +97,11 @@ def get_file_results(filename, results):
 				r = {}
 				r['executable'] = m.group(1)
 				r['appranks'] = int(m.group(2))
-				r['deg'] = int(m.group(3))
+				r['degree'] = int(m.group(3))
 				r['params'] = tuple(m.group(4).split())
 				r['lewi'] = lewi
 				r['drom'] = drom
+				r['policy'] = policy
 				time = float(m.group(5))
 				results.append((r,time))
 
