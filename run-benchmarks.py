@@ -13,6 +13,12 @@ import check_num_nodes
 from string import Template
 import copy
 
+try:
+	import numpy as np
+	canImportNumpy = True
+except ImportError:
+	canImportNumpy = False
+
 verbose = True
 
 job_output_dir = 'jobs/'
@@ -134,10 +140,16 @@ def Usage():
 	return 1
 
 def main(argv):
+	if not canImportNumpy:
+		if len(argv) >= 2 and argv[1] == '--recurse':
+			print('Error with recursive invocation')
+			return 1
+		ret = os.system('module load python/3.6.1; python ' + argv[0] + ' --recurse ' + ' '.join(argv[1:]))
+		return ret
 
 	try:
 		opts, args = getopt.getopt( argv[1:],
-									'hf', ['help'])
+									'hf', ['help', 'recurse'])
 
 	except getopt.error as msg:
 		print(msg)
@@ -146,6 +158,9 @@ def main(argv):
 	for o, a in opts:
 		if o in ('-h', '--help'):
 			return Usage()
+		elif o == '--recurse':
+			# Ignore
+			pass
 	
 	if len(args) < 1:
 		return Usage()
@@ -180,9 +195,9 @@ def main(argv):
 		print('Genplots command not implemented')
 		results = get_all_results()
 		results = averaged_results(results)
-		print(results)
-
+		unbalanced_sweep.generate_plots(results)
 		return 1
+
 	elif command == 'archive':
 		if not os.path.exists(archive_output_dir):
 			os.mkdir(archive_output_dir)
