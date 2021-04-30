@@ -10,12 +10,26 @@ import time
 import subprocess
 from synthetic import unbalanced_sweep
 import check_num_nodes
+from string import Template
 
 verbose = True
 
 job_output_dir = 'jobs/'
 output_dir = 'output/'
 archive_output_dir = 'archive/'
+
+job_script_template = """#! /bin/bash
+#SBATCH --nodes=$num_nodes
+#SBATCH --cpus-per-task=48
+#SBATCH --time=02:00:00
+#SBATCH --qos=bsc_cs
+#SBATCH --output=$job_name.out
+#SBATCH --error=$job_name.err
+
+#ulimit -s 524288 # for AddressSanitizer
+
+./run-experiment.py batch
+"""
 
 def unique_output_name(subdir, prefix="", suffix=""):
 	basename = time.strftime('%Y%m%d_%H-%M')
@@ -45,7 +59,14 @@ def run_single_command(cmd, keep_output=True):
 	print(full_cmd)
 	s = subprocess.run(full_cmd, shell=True)
 	
-
+def create_job_script(num_nodes):
+	job_name = unique_output_name(job_output_dir, 'batch%d_' % num_nodes)
+	t = Template(job_script_template)
+	job_script_name = job_name + '.job'
+	print(job_script_name)
+	with open(job_script_name, 'w') as fp:
+		print( t.substitute(num_nodes=num_nodes, job_name=job_name), file = fp)
+	return job_script_name
 	
 
 def Usage():
@@ -84,7 +105,6 @@ def main(argv):
 	elif command == 'interactive':
 		if not os.path.exists(job_output_dir):
 			os.mkdir(job_output_dir)
-		print('Interactive command not implemented')
 		if not check_num_nodes.get_on_compute_node():
 			print('run-experiment.py interactive must be run on a compute node')
 			return 2
@@ -96,7 +116,13 @@ def main(argv):
 			print('Interrupted')
 		return 1
 	elif command == 'submit':
-		print('Submit command not implemented')
+		if not os.path.exists(job_output_dir):
+			os.mkdir(job_output_dir)
+		num_nodes = set([])
+		for n in [unbalanced_sweep.num_nodes()]:
+			num_nodes.update(n)
+		for n in sorted(n):
+			job_script_name = create_job_script(n)
 		return 1
 	elif command == 'genplots':
 		print('Genplots command not implemented')
