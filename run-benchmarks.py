@@ -11,6 +11,7 @@ import subprocess
 from synthetic import unbalanced_sweep
 import check_num_nodes
 from string import Template
+import copy
 
 verbose = True
 
@@ -68,36 +69,56 @@ def create_job_script(num_nodes):
 		print( t.substitute(num_nodes=num_nodes, job_name=job_name), file = fp)
 	return job_script_name
 	
+def get_from_command(regex, desc, command, filename):
+	m = re.search(regex, command)
+	if not m:
+		print('%s not defined in the command for %s', desc, filename)
+		sys.exit(1)
+	return m.group(1)
+
+def get_file_results(filename, results):
+	re_result = re.compile('# ([a-zA-Z0-9/_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) sec')
+	#runhybrid.py --debug false --vranks 4 --local --degree 1 --local-period 120 --monitor 200 --config-override dlb.enable_drom=true,dlb.enable_lewi=true build/synthetic_unbalanced 10 480 1 0 48.6 16.0 2.5 2.0
+	with open(os.path.join(job_output_dir, filename)) as fp:
+		command = fp.readline()
+		drom = get_from_command('dlb.enable_drom=(true|false)', 'dlb.enable_drom', command, filename)
+		lewi = get_from_command('dlb.enable_lewi=(true|false)', 'dlb.enable_drom', command, filename)
+
+		for line in fp.readlines():
+			m = re_result.match(line)
+			if m:
+				r = {}
+				r['executable'] = m.group(1)
+				r['appranks'] = int(m.group(2))
+				r['deg'] = int(m.group(3))
+				r['params'] = tuple(m.group(4).split())
+				r['lewi'] = lewi
+				r['drom'] = drom
+				time = float(m.group(5))
+				results.append((r,time))
+
+
 def get_all_results():
 	filenames = os.listdir(job_output_dir)
 	re_filename = re.compile('(interactive|batch)_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9]*-[0-9]*.*\.txt$')
-	re_result = re.compile('# ([a-zA-Z0-9/_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) sec')
 	# build/synthetic_unbalanced appranks=4 deg=1 10 480 1k 0 48.6 16.0 2.5 2.0 : iter=0 time=0.54 sec
 	results = []
 	for filename in filenames:
-		print(filename)
 		if re_filename.match(filename):
-			with open(os.path.join(job_output_dir, filename)) as fp:
-				for line in fp.readlines():
-					m = re_result.match(line)
-					if m:
-						executable = m.group(1)
-						appranks = m.group(2)
-						deg = m.group(3)
-						r = m.group(4).split()
-						time = m.group(5)
-						results.append( (executable, appranks, deg, r, time) )
+			get_file_results(filename, results)
 	return results
 	
 def averaged_results(results):
 	times = {}
-	for (executable, appranks, deg, r, time) in results:
-		key = (executable, appranks, deg, tuple(r))
+	for r,time in results:
+		key = tuple(sorted(r.items()))
 		if not key in times:
 			times[key] = []
 		times[key].append(time)
-	for key,timelist in times.items():
-		print(key, timelist)
+	avg = []
+	for key,timelist in sorted(times.items()):
+		avg.append( (dict(key), timelist) )
+	return avg
 		
 
 def Usage():
