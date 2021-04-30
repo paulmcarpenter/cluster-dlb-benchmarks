@@ -4,6 +4,8 @@ import os
 from string import Template
 import re
 
+# Workaround for python/3.6.6_gdb doesn't support numpy
+# See run-benchmarks.py
 try:
 	import numpy as np
 	from matplotlib.backends.backend_pdf import PdfPages
@@ -11,17 +13,17 @@ try:
 except ImportError:
 	pass
 
+# Template to create the command to run the benchmark
 command_template = ' '.join(['runhybrid.py --debug false --vranks $vranks --local --degree $degree --local-period 120 --monitor 200',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/synthetic_unbalanced 10 480 $memsize $noflush $costs'])
-# runhybrid.py --debug false --vranks 4 --local --degree 2 --local-period 120 --monitor 200  ./synthetic_unbalanced 10 480 20M 0 48.6 16.0 2.5 2.0
 
-
+# For which numbers of nodes is this benchmark valid
 def num_nodes():
 	return [2,4]
 
+# Return the list of all commands to run
 def commands(num_nodes):
-	
 	t = Template(command_template)
 	vranks = num_nodes * 2 # Start with fixed *2 oversubscription
 	if vranks == 4:
@@ -37,7 +39,7 @@ def commands(num_nodes):
 						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, memsize=memsize, noflush=noflush, costs=costs)
 						yield cmd
 
-
+# Convert memory size descriptor to number of bytes
 def from_mem(s):
 	assert len(s) > 0
 	suffixes = {'k': 1000, 'M' : 1000000, 'G' : 1000000000 }
@@ -46,6 +48,7 @@ def from_mem(s):
 	else:
 		return int(s)
 
+# Convert number of bytes to memory size descriptor
 def format_mem(x):
     num = 0
     while x >= 1000 and (x % 1000) == 0:
@@ -56,6 +59,7 @@ def format_mem(x):
     else:
         return ('%d' % x) + 'kMGTPE'[num-1]
 
+# Get all values of a field 
 def get_values(results, field):
 	values = set([])
 	for r, times in results:
@@ -66,7 +70,6 @@ def average(l):
 	return 1.0 * sum(l) / len(l)
 
 def generate_plots(results):
-	print('generate_plots')
 
 	# Keep only results for correct executable
 	results = [ (r,times) for (r,times) in results if r['executable'] == 'build/synthetic_unbalanced']
@@ -74,12 +77,7 @@ def generate_plots(results):
 	policies = get_values(results, 'policy')
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
-	print('policies', policies)
-	print('degrees', degrees)
 
-	for r, times in results:
-		print(r, times)
-	
 	for appranks in apprankss:
 		for policy in policies:
 			for degree in degrees:
@@ -106,11 +104,8 @@ def generate_plots(results):
 										   and r['lewi'] == lewi \
 										   and r['drom'] == drom \
 										   and r['policy'] == policy]
-							print(title)
 							mems = sorted(set([from_mem(r['params'][2]) for r,times in res]))
 							iters = sorted(set([int(r['params'][9][5:]) for r,times in res]))
-							print('mems', mems)
-							print('iters', iters)
 							if len(mems) > 0:
 															
 								with PdfPages('output/%s' % title) as pdf:
@@ -122,7 +117,6 @@ def generate_plots(results):
 											t = [times for r,times in res \
 												if from_mem(r['params'][2]) == mem \
 													and int(r['params'][9][5:]) == iter_num]
-											print(t)
 											if len(t) == 1:
 												xx.append(iter_num)
 												yy.append(average(t[0]))
