@@ -89,6 +89,16 @@ def get_all_results():
 						results.append( (executable, appranks, deg, r, time) )
 	return results
 	
+def averaged_results(results):
+	times = {}
+	for (executable, appranks, deg, r, time) in results:
+		key = (executable, appranks, deg, tuple(r))
+		if not key in times:
+			times[key] = []
+		times[key].append(time)
+	for key,timelist in times.items():
+		print(key, timelist)
+		
 
 def Usage():
 	print('./monitor.py <options> command')
@@ -148,6 +158,7 @@ def main(argv):
 	elif command == 'process':
 		print('Genplots command not implemented')
 		results = get_all_results()
+		results = averaged_results(results)
 		print(results)
 
 		return 1
