@@ -172,8 +172,7 @@ def main(argv):
 		print('To make, run make')
 		return 0
 	elif command == 'interactive' or command == 'batch':
-		if not os.path.exists(job_output_dir):
-			os.mkdir(job_output_dir)
+		os.makedirs(job_output_dir, exist_ok=True)
 		if not check_num_nodes.get_on_compute_node():
 			print('run-experiment.py interactive must be run on a compute node')
 			return 2
@@ -185,8 +184,7 @@ def main(argv):
 			print('Interrupted')
 		return 1
 	elif command == 'submit':
-		if not os.path.exists(job_output_dir):
-			os.mkdir(job_output_dir)
+		os.makedirs(job_output_dir, exist_ok=True)
 		num_nodes = set([])
 		for n in [unbalanced_sweep.num_nodes()]:
 			num_nodes.update(n)
@@ -194,15 +192,14 @@ def main(argv):
 			job_script_name = create_job_script(n)
 		return 1
 	elif command == 'process':
-		print('Genplots command not implemented')
+		os.makedirs(output_dir, exist_ok=True)
 		results = get_all_results()
 		results = averaged_results(results)
 		unbalanced_sweep.generate_plots(results)
 		return 1
 
 	elif command == 'archive':
-		if not os.path.exists(archive_output_dir):
-			os.mkdir(archive_output_dir)
+		os.makedirs(archive_output_dir, exist_ok=True)
 		archive_folder = unique_output_name(archive_output_dir, 'jobs_')
 		os.mkdir(archive_folder)
 		run_single_command('mv ' + job_output_dir + '/* ' + archive_folder, keep_output=False)

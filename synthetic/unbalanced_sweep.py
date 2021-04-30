@@ -62,6 +62,8 @@ def get_values(results, field):
 		values.add(r[field])
 	return sorted(values)
 
+def average(l):
+	return 1.0 * sum(l) / len(l)
 
 def generate_plots(results):
 	print('generate_plots')
@@ -105,114 +107,36 @@ def generate_plots(results):
 										   and r['drom'] == drom \
 										   and r['policy'] == policy]
 							print(title)
-							for s in res:
-								print(' ', s)
+							mems = sorted(set([from_mem(r['params'][2]) for r,times in res]))
+							iters = sorted(set([int(r['params'][9][5:]) for r,times in res]))
+							print('mems', mems)
+							print('iters', iters)
+							if len(mems) > 0:
 															
-
-#                        with PdfPages('sweep-%s-%s-%s.pdf' % (program, policy, degree)) as pdf:
-#                            for mem in mems:
-#                                xx = []
-#                                yy = []
-#                                for iter_num in range(0,max_iter):
-#                                    key = (program, policy, degree, mem, iter_num)
-#                                    if key in mean_results:
-#                                        xx.append(iter_num)
-#                                        yy.append(mean_results[key])
-#                                plt.plot(xx, yy, label = format_mem(mem))
-#                            plt.title('%s degree %d: Execution time per iteration' % (policy, degree))
-#                            plt.xlabel('Iteration number')
-#                            plt.ylabel('Execution time (s)')
-#                            plt.legend()
-#                            pdf.savefig()
-#                            plt.close()
-
-#	dromlewi_re = re.compile(r'NANOS6_ENABLE_DROM = ([01]) NANOS6_ENABLE_LEWI = ([01])')
-#
-#	cmd_re = re.compile(r"\.\.\/all.py.* --(local|global) --degree ([1-9][0-9]*) .*\.\./([^ ]*) ([0-9]*) ([0-9]*)  *([0-9]*[kMG]?)")
-#
-#	result_re = re.compile(r"([0-9]*\.[0-9]*) sec")
-#	
-#	results = {}
-#	mems = set([])
-#
-#	drom = None
-#	lewi = None
-#	degrees = set([])
-#   	programs = set([])
-#	max_iter = 0
-#	for filename in argv[1:]:
-#		mem = None
-#		iters = None
-#		iter_num = None
-#		with open(filename, 'r') as fp:
-#			for line in fp.readlines():
-#				m = dromlewi_re.match(line)
-#				if m:
-#					drom = int(m.group(1))
-#					lewi = int(m.group(2))
-#				m = cmd_re.match(line)
-#				if m:
-#					policy = m.group(1)
-#					degree = int(m.group(2))
-#					assert not drom is None
-#					assert not lewi is None
-#					program = m.group(3) + ('-drom=%d-lewi=%d' % (drom,lewi))
-#					iters = int(m.group(4))
-#					tasks = int(m.group(5))
-#					mem = from_mem(m.group(6))
-#					iter_num = 0
-#				m = result_re.match(line)
-#				if m:
-#					assert not mem is None
-#					assert not iter_num is None
-#					time = float(m.group(1))
-#					#print policy, degree, mem, iter_num, time
-#					max_iter = max(iter_num, max_iter)
-#					mems.add(mem)
-#                                        programs.add(program)
-#					degrees.add(degree)
-#					key = (program, policy, degree, mem, iter_num)
-#					if not key in results:
-#						results[key] = []
-#					results[key].append(time)
-#					iter_num += 1
-#
-#        for program in sorted(programs):
-#            print
-#            print 'drom=', drom, 'lewi=', lewi, 'program=',program
-#            print 'policy degree         memory   iteration   avg-time (s)   time (s)'
-#            for policy in ['local', 'global']:
-#                    for degree in sorted(degrees):
-#                            for mem in sorted(mems):
-#                                    for iter_num in range(0,max_iter):
-#                                            key = (program, policy, degree, mem, iter_num)
-#                                            
-#                                            if key in results:
-#                                                    mean = sum(results[key]) / len(results[key])
-#                                                    print '%-6s     %2d   %12d  %10d          %5.2f  ' % (policy, degree, mem, iter_num, mean),
-#
-#                                                    for t in results[key]:
-#                                                            print '%5.2f' % t,
-#                                                    print
-#
-#        mean_results = dict([ (key, sum(l) / len(l)) for (key,l) in results.items()])
-#
-#        for program in sorted(programs):
-#            for policy in ['local', 'global']:
-#                for degree in sorted(degrees):
-#
-#                    # Any data for this combination?
-#                    m = sorted(mems)
-#                    haveData = False
-#                    for mem in m:
-#                        if haveData:
-#                            break
-#                        key = (program, policy, degree, mem, 0)
-#                        if key in results:
-#                            haveData = True
-#                            break
-#
-#                    if haveData:
+								with PdfPages('output/%s' % title) as pdf:
+									maxy = 0
+									for mem in mems:
+										xx = []
+										yy = []
+										for iter_num in iters:
+											t = [times for r,times in res \
+												if from_mem(r['params'][2]) == mem \
+													and int(r['params'][9][5:]) == iter_num]
+											print(t)
+											if len(t) == 1:
+												xx.append(iter_num)
+												yy.append(average(t[0]))
+											else:
+												assert len(t) == 0
+										plt.plot(xx, yy, label = format_mem(mem))
+										maxy = max(maxy,max(yy))
+									plt.title('%s degree %d: Execution time per iteration' % (policy, degree))
+									plt.xlabel('Iteration number')
+									plt.ylabel('Execution time (s)')
+									plt.ylim(0,maxy)
+									plt.legend()
+									pdf.savefig()
+									plt.close()
 
 
 if __name__ == '__main__':
