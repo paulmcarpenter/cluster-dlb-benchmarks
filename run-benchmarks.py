@@ -44,10 +44,10 @@ def unique_output_name(subdir, prefix="", suffix=""):
 	print('Something went wrong')
 	sys.exit(1)
 
-def run_single_command(cmd, keep_output=True):
+def run_single_command(command, cmd, keep_output=True):
 	global verbose
 	if keep_output:
-		job_output_file = unique_output_name(job_output_dir, 'interactive_', '.txt')
+		job_output_file = unique_output_name(job_output_dir, command + '_', '.txt')
 		with open(job_output_file, 'w') as fp:
 			print(cmd, file=fp)
 		if verbose:
@@ -68,6 +68,27 @@ def create_job_script(num_nodes):
 		print( t.substitute(num_nodes=num_nodes, job_name=job_name), file = fp)
 	return job_script_name
 	
+def get_all_results():
+	filenames = os.listdir(job_output_dir)
+	re_filename = re.compile('(interactive|batch)_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9]*-[0-9]*.*\.txt$')
+	re_result = re.compile('# ([a-zA-Z0-9/_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) sec')
+	# build/synthetic_unbalanced appranks=4 deg=1 10 480 1k 0 48.6 16.0 2.5 2.0 : iter=0 time=0.54 sec
+	results = []
+	for filename in filenames:
+		print(filename)
+		if re_filename.match(filename):
+			with open(os.path.join(job_output_dir, filename)) as fp:
+				for line in fp.readlines():
+					m = re_result.match(line)
+					if m:
+						executable = m.group(1)
+						appranks = m.group(2)
+						deg = m.group(3)
+						r = m.group(4).split()
+						time = m.group(5)
+						results.append( (executable, appranks, deg, r, time) )
+	return results
+	
 
 def Usage():
 	print('./monitor.py <options> command')
@@ -77,7 +98,7 @@ def Usage():
 	print('make                     Show make instructions')
 	print('interactive              Run interactively')
 	print('submit                   Submit jobs')
-	print('genplots                 Generate plots')
+	print('process                  Generate plots')
 	print('archive                  Archive data')
 	return 1
 
@@ -102,7 +123,7 @@ def main(argv):
 	if command == 'make':
 		print('To make, run make')
 		return 0
-	elif command == 'interactive':
+	elif command == 'interactive' or command == 'batch':
 		if not os.path.exists(job_output_dir):
 			os.mkdir(job_output_dir)
 		if not check_num_nodes.get_on_compute_node():
@@ -111,7 +132,7 @@ def main(argv):
 		num_nodes = check_num_nodes.get_num_nodes()
 		try:
 			for cmd in unbalanced_sweep.commands(num_nodes):
-				run_single_command(cmd)
+				run_single_command(command, cmd)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		return 1
@@ -124,8 +145,11 @@ def main(argv):
 		for n in sorted(n):
 			job_script_name = create_job_script(n)
 		return 1
-	elif command == 'genplots':
+	elif command == 'process':
 		print('Genplots command not implemented')
+		results = get_all_results()
+		print(results)
+
 		return 1
 	elif command == 'archive':
 		if not os.path.exists(archive_output_dir):
