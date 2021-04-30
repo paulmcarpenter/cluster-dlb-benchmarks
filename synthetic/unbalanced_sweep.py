@@ -12,11 +12,11 @@ def commands(num_nodes):
 	
 	t = Template(command_template)
 	vranks = num_nodes * 2 # Start with fixed *2 oversubscription
-	for noflush in [0,1]:
+	for noflush in [0]:#[0,1]:
 		for degree in [1,2]:
-			for drom in [1]: # [0,1] if degree != 1
-				for lewi in [1]: # [0,1] if degree != 1
-					for memsize in ['1', '1k', '10k', '100k', '1M', '10M', '20M', '40M']:
+			for drom in ['true']: # ['true','false'] if degree != 1
+				for lewi in ['true']: # ['true','false'] if degree != 1
+					for memsize in ['20M']: #['1', '1k', '10k', '100k', '1M', '10M', '20M', '40M']:
 						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, memsize=memsize, noflush=noflush)
 						yield cmd
 	

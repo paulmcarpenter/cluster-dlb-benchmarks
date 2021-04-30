@@ -7,6 +7,7 @@ import time
 import getopt
 import re
 import time
+import subprocess
 from synthetic import unbalanced_sweep
 import check_num_nodes
 
@@ -14,29 +15,35 @@ verbose = True
 
 job_output_dir = 'jobs/'
 output_dir = 'output/'
+archive_output_dir = 'archive/'
 
 def unique_output_name(subdir, prefix="", suffix=""):
-	s = time.strftime('%Y%m%d_%H-%M')
+	basename = time.strftime('%Y%m%d_%H-%M')
 	counter = ''
 	k = 1
 	while k<100:
-		s = os.path.join(subdir, prefix+s+counter+suffix)
-		if not os.path.exists(s):
-			return s
+		fullname = os.path.join(subdir, prefix+basename+counter+suffix)
+		if not os.path.exists(fullname):
+			return fullname
 		counter = '_%d' % k
 		k = k + 1
 	print('Something went wrong')
 	sys.exit(1)
 
-def run_single_command(cmd):
+def run_single_command(cmd, keep_output=True):
 	global verbose
-	job_output_file = unique_output_name(job_output_dir, 'interactive_', '.txt')
-	if verbose:
-		full_cmd = cmd + ' | tee ' + job_output_file
+	if keep_output:
+		job_output_file = unique_output_name(job_output_dir, 'interactive_', '.txt')
+		with open(job_output_file, 'w') as fp:
+			print(cmd, file=fp)
+		if verbose:
+			full_cmd = cmd + ' | tee -a ' + job_output_file
+		else:
+			full_cmd = cmd + ' >> ' + job_output_file
 	else:
-		full_cmd = cmd + ' > ' + job_output_file
+		full_cmd = cmd
 	print(full_cmd)
-	os.system(full_cmd)
+	s = subprocess.run(full_cmd, shell=True)
 	
 
 	
@@ -82,8 +89,11 @@ def main(argv):
 			print('run-experiment.py interactive must be run on a compute node')
 			return 2
 		num_nodes = check_num_nodes.get_num_nodes()
-		for cmd in unbalanced_sweep.commands(num_nodes):
-			run_single_command(cmd)
+		try:
+			for cmd in unbalanced_sweep.commands(num_nodes):
+				run_single_command(cmd)
+		except KeyboardInterrupt:
+			print('Interrupted')
 		return 1
 	elif command == 'submit':
 		print('Submit command not implemented')
@@ -91,6 +101,12 @@ def main(argv):
 	elif command == 'genplots':
 		print('Genplots command not implemented')
 		return 1
+	elif command == 'archive':
+		if not os.path.exists(archive_output_dir):
+			os.mkdir(archive_output_dir)
+		archive_folder = unique_output_name(archive_output_dir, 'jobs_')
+		os.mkdir(archive_folder)
+		run_single_command('mv ' + job_output_dir + '/* ' + archive_folder, keep_output=False)
 	else:
 		print('Unrecognized command %s\n' % command)
 		return Usage()
