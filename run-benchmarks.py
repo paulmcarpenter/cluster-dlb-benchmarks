@@ -96,8 +96,7 @@ def get_from_command(regex, desc, command, filename):
 	return m.group(1)
 
 def get_file_results(filename, results):
-	re_result = re.compile('# ([a-zA-Z0-9/_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) sec')
-	#runhybrid.py --debug false --vranks 4 --local --degree 1 --local-period 120 --monitor 200 --config-override dlb.enable_drom=true,dlb.enable_lewi=true build/synthetic_unbalanced 10 480 1 0 48.6 16.0 2.5 2.0
+	re_result = re.compile('# ([-a-zA-Z0-9./_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) (sec|ms)')
 	with open(os.path.join(job_output_dir, filename)) as fp:
 		command = fp.readline()
 		drom = get_from_command('dlb.enable_drom=(true|false)', 'dlb.enable_drom', command, filename)
@@ -111,7 +110,12 @@ def get_file_results(filename, results):
 				r['executable'] = m.group(1)
 				r['appranks'] = int(m.group(2))
 				r['degree'] = int(m.group(3))
-				r['params'] = tuple(m.group(4).split())
+				params = tuple(m.group(4).split())
+				for p in params:
+					if '=' in p:
+						p2 = p.split('=')
+						r[p2[0]] = p2[1]
+				r['params'] = params
 				r['lewi'] = lewi
 				r['drom'] = drom
 				r['policy'] = policy
