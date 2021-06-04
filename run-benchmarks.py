@@ -62,8 +62,9 @@ def run_single_command(cmd, command=None, keep_output=True):
 	global verbose
 	if keep_output:
 		job_output_file = unique_output_name(job_output_dir, command + '_', '.txt')
-		with open(job_output_file, 'w') as fp:
-			print(cmd, file=fp)
+		if not dry_run:
+			with open(job_output_file, 'w') as fp:
+				print(cmd, file=fp)
 		if verbose:
 			full_cmd = cmd + ' | tee -a ' + job_output_file
 		else:
