@@ -230,6 +230,17 @@ def main(argv):
 
 	command = args[0]
 
+	cwd = os.getcwd()
+
+	expected_curdir = 'cluster-dlb-benchmarks'
+	if (os.path.basename(cwd) != expected_curdir):
+		if f'/{expected_curdir}/' in cwd:
+			subdir = os.path.basename(cwd)
+			print(f'Run from {expected_curdir} directory, not subdirectory {subdir}')
+		else:
+			print(f'Run from {expected_curdir} directory')
+		return 1
+
 	if command in ['interactive', 'batch', 'submit']:
 		# Check that all binaries exist
 		if not binaries_ok():
