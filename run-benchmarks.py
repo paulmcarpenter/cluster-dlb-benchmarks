@@ -140,6 +140,14 @@ def averaged_results(results):
 		avg.append( (dict(key), timelist) )
 	return avg
 		
+def binaries_ok():
+	ok = True
+	if include_synthetic:
+		ok = ok and unbalanced_sweep.binaries_ok()
+	if include_micropp:
+		ok = ok and micropp.binaries_ok()
+	return ok
+
 def all_commands(num_nodes):
 	if include_synthetic:
 		for cmd in unbalanced_sweep.commands(num_nodes):
@@ -221,6 +229,13 @@ def main(argv):
 		return Usage()
 
 	command = args[0]
+
+	if command in ['interactive', 'batch', 'submit']:
+		# Check that all binaries exist
+		if not binaries_ok():
+			print('Error: one or more binary missing; use make')
+			return 1
+
 	if command == 'make':
 		print('To make, run make')
 		return 0

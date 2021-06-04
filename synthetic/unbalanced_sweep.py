@@ -22,6 +22,15 @@ command_template = ' '.join(['runhybrid.py --debug false --vranks $vranks --loca
 def num_nodes():
 	return [2,4]
 
+# Check whether the binary is missing
+def binaries_ok():
+	if not os.path.exists('build/synthetic_unbalanced'):
+		print('Binary build/synthetic_unbalanced for synthetic is missing')
+		return False
+	else:
+		return True
+	
+
 # Return the list of all commands to run
 def commands(num_nodes):
 	t = Template(command_template)
