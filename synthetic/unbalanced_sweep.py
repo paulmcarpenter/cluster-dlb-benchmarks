@@ -23,7 +23,8 @@ def num_nodes():
 	return [2,4]
 
 # Check whether the binary is missing
-def binaries_ok():
+def make():
+	# Normal make done with cmake
 	if not os.path.exists('build/synthetic_unbalanced'):
 		print('Binary build/synthetic_unbalanced for synthetic is missing')
 		return False

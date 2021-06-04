@@ -23,15 +23,21 @@ def num_nodes():
 	return [2,4,8]
 
 # Check whether the binary is missing
-def binaries_ok():
+def make():
 	if not 'MICROPP' in os.environ:
 		print('Environment variable MICROPP not set')
 		return False
 	micropp_location = os.environ['MICROPP']
+	owd = os.getcwd()
+	os.chdir(f'{micropp_location}/test')
+	ret = os.system('make')
+	os.chdir(owd)
+	if ret != 0:
+		return False
 	micropp_binary = f'{micropp_location}/test/mpi-load-balance'
-	print(micropp_binary)
 	if not os.path.exists(micropp_binary):
 		print('Binary {micropp_binary} for MicroPP is missing')
+		return False
 	os.system(f'cp {micropp_binary} build/mpi-load-balance')
 	return True
 	

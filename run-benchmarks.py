@@ -140,13 +140,33 @@ def averaged_results(results):
 	for key,timelist in sorted(times.items()):
 		avg.append( (dict(key), timelist) )
 	return avg
+
+def cmake_make():
+	owd = os.getcwd()
+	if not os.path.exists('build/Makefile'):
+		print('build/Makefile does not exist')
+		return False
+	os.chdir('build')
+	ret = os.system('make')
+	os.chdir(owd)
+	return ret == 0
 		
-def binaries_ok():
+def make():
+	if not os.path.exists('build'):
+		print('Please create build/ directory first')
+		print('  mkdir build/')
+		print('  cd build/')
+		print('  cmake ..')
+		print('  cd ..')
+		return False
 	ok = True
 	if include_synthetic:
-		ok = ok and unbalanced_sweep.binaries_ok()
-	if include_micropp:
-		ok = ok and micropp.binaries_ok()
+		# Benchmarks using cmake
+		ok = ok and cmake_make()
+	if ok and include_synthetic:
+		ok = ok and unbalanced_sweep.make()
+	if ok and include_micropp:
+		ok = ok and micropp.make()
 	return ok
 
 def all_commands(num_nodes):
@@ -181,7 +201,7 @@ def Usage():
 	print(' --quiet                 Less verbose output')
 	print(' --dry-run               Show commands to run but do not run them')
 	print('Commands:')
-	print('make                     Show make instructions')
+	print('make                     Run make')
 	print('interactive              Run interactively')
 	print('submit                   Submit jobs')
 	print('process                  Generate plots')
@@ -242,14 +262,14 @@ def main(argv):
 			print(f'Run from {expected_curdir} directory')
 		return 1
 
-	if command in ['interactive', 'batch', 'submit']:
-		# Check that all binaries exist
-		if not binaries_ok():
+	if command in ['make', 'interactive', 'batch', 'submit']:
+		# Run make
+		if not make():
 			print('Error: one or more binary missing; use make')
 			return 1
 
 	if command == 'make':
-		print('To make, run make')
+		# Already ran 'make' above
 		return 0
 	elif command == 'interactive' or command == 'batch':
 		os.makedirs(job_output_dir, exist_ok=True)
