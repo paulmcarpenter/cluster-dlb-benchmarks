@@ -42,7 +42,7 @@ job_script_template = """#! /bin/bash
 
 #ulimit -s 524288 # for AddressSanitizer
 
-./run-experiment.py $args batch
+./run-benchmarks.py $args batch
 """
 
 def unique_output_name(subdir, prefix="", suffix=""):
@@ -83,11 +83,14 @@ def create_job_script(num_nodes):
 	args_list = []
 	if dry_run:
 		args_list.append('--dry-run')
-	args = args_list.join(' ')
+	args = ' '.join(args_list)
 	with open(job_script_name, 'w') as fp:
 		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args), file = fp)
 	return job_script_name
-	
+
+def submit_job_script(job_script_name):
+	run_single_command(f'sbatch {job_script_name}', None, False)
+
 def get_from_command(regex, desc, command, filename):
 	m = re.search(regex, command)
 	if not m:
@@ -278,7 +281,7 @@ def main(argv):
 	elif command == 'interactive' or command == 'batch':
 		os.makedirs(job_output_dir, exist_ok=True)
 		if not check_num_nodes.get_on_compute_node():
-			print('run-experiment.py interactive must be run on a compute node')
+			print('run-benchmarks.py interactive must be run on a compute node')
 			return 2
 		num_nodes = check_num_nodes.get_num_nodes()
 		try:
@@ -292,6 +295,8 @@ def main(argv):
 		num_nodes = all_num_nodes()
 		for n in num_nodes:
 			job_script_name = create_job_script(n)
+			if not dry_run:
+				submit_job_script(job_script_name)
 		return 1
 	elif command == 'process':
 		os.makedirs(output_dir, exist_ok=True)
