@@ -58,7 +58,7 @@ def unique_output_name(subdir, prefix="", suffix=""):
 	print('Something went wrong')
 	sys.exit(1)
 
-def run_single_command(command, cmd, keep_output=True):
+def run_single_command(cmd, command=None, keep_output=True):
 	global verbose
 	if keep_output:
 		job_output_file = unique_output_name(job_output_dir, command + '_', '.txt')
@@ -258,7 +258,7 @@ def main(argv):
 		num_nodes = check_num_nodes.get_num_nodes()
 		try:
 			for cmd in all_commands(num_nodes):
-				run_single_command(command, cmd)
+				run_single_command(cmd, command)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		return 1
@@ -279,7 +279,7 @@ def main(argv):
 		os.makedirs(archive_output_dir, exist_ok=True)
 		archive_folder = unique_output_name(archive_output_dir, 'jobs_')
 		os.mkdir(archive_folder)
-		run_single_command('mv ' + job_output_dir + '/* ' + archive_folder, keep_output=False)
+		run_single_command('mv ' + job_output_dir + '/* ' + archive_folder, command=None, keep_output=False)
 	else:
 		print('Unrecognized command %s\n' % command)
 		return Usage()
