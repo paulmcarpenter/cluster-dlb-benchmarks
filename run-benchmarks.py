@@ -9,6 +9,7 @@ import re
 import time
 import subprocess
 from synthetic import unbalanced_sweep
+from micropp import micropp
 import check_num_nodes
 from string import Template
 import copy
@@ -19,12 +20,18 @@ try:
 except ImportError:
 	canImportNumpy = False
 
+# Default parameters
+include_synthetic = True
+include_micropp = True
 verbose = True
+dry_run = False
 
+# Fixed working/output directories
 job_output_dir = 'jobs/'
 output_dir = 'output/'
 archive_output_dir = 'archive/'
 
+# Template for job script
 job_script_template = """#! /bin/bash
 #SBATCH --nodes=$num_nodes
 #SBATCH --cpus-per-task=48
@@ -35,7 +42,7 @@ job_script_template = """#! /bin/bash
 
 #ulimit -s 524288 # for AddressSanitizer
 
-./run-experiment.py batch
+./run-experiment.py $args batch
 """
 
 def unique_output_name(subdir, prefix="", suffix=""):
@@ -64,15 +71,20 @@ def run_single_command(command, cmd, keep_output=True):
 	else:
 		full_cmd = cmd
 	print(full_cmd)
-	s = subprocess.run(full_cmd, shell=True)
+	if not dry_run:
+		s = subprocess.run(full_cmd, shell=True)
 	
 def create_job_script(num_nodes):
 	job_name = unique_output_name(job_output_dir, 'batch%d_' % num_nodes)
 	t = Template(job_script_template)
 	job_script_name = job_name + '.job'
 	print(job_script_name)
+	args_list = []
+	if dry_run:
+		args_list.append('--dry-run')
+	args = args_list.join(' ')
 	with open(job_script_name, 'w') as fp:
-		print( t.substitute(num_nodes=num_nodes, job_name=job_name), file = fp)
+		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args), file = fp)
 	return job_script_name
 	
 def get_from_command(regex, desc, command, filename):
@@ -128,11 +140,37 @@ def averaged_results(results):
 		avg.append( (dict(key), timelist) )
 	return avg
 		
+def all_commands(num_nodes):
+	if include_synthetic:
+		for cmd in unbalanced_sweep.commands(num_nodes):
+			yield cmd
+	if include_micropp:
+		for cmd in micropp.commands(num_nodes):
+			yield cmd
+
+def all_num_nodes():
+	num_nodes = set([])
+	if include_synthetic:
+		num_nodes.update(unbalanced_sweep.num_nodes())
+	if include_micropp:
+		num_nodes.update(micropp.num_nodes())
+	return sorted(num_nodes)
+
+def generate_plots(results):
+	if include_synthetic:
+		unbalanced_sweep.generate_plots(results)
+	if include_micropp:
+		micropp.generate_plots(results)
+		
 
 def Usage():
 	print('./monitor.py <options> command')
 	print('where:')
 	print(' -h                      Show this help')
+	print(' --no-synthetic          Do not include synthetic benchmarks')
+	print(' --no-micropp            Do not include micropp benchmarks')
+	print(' --quiet                 Less verbose output')
+	print(' --dry-run               Show commands to run but do not run them')
 	print('Commands:')
 	print('make                     Show make instructions')
 	print('interactive              Run interactively')
@@ -142,6 +180,11 @@ def Usage():
 	return 1
 
 def main(argv):
+	global include_synthetic
+	global include_micropp
+	global verbose
+	global dry_run
+
 	if not canImportNumpy:
 		if len(argv) >= 2 and argv[1] == '--recurse':
 			print('Error with recursive invocation')
@@ -151,7 +194,7 @@ def main(argv):
 
 	try:
 		opts, args = getopt.getopt( argv[1:],
-									'hf', ['help', 'recurse'])
+									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run'])
 
 	except getopt.error as msg:
 		print(msg)
@@ -163,6 +206,16 @@ def main(argv):
 		elif o == '--recurse':
 			# Ignore
 			pass
+		elif o == '--quiet':
+			verbose = False
+		elif o == '--no-synthetic':
+			include_synthetic = False
+		elif o == '--no-micropp':
+			include_micropp = False
+		elif o == '--dry-run':
+			dry_run = True
+		else:
+			assert False
 	
 	if len(args) < 1:
 		return Usage()
@@ -178,24 +231,22 @@ def main(argv):
 			return 2
 		num_nodes = check_num_nodes.get_num_nodes()
 		try:
-			for cmd in unbalanced_sweep.commands(num_nodes):
+			for cmd in all_commands(num_nodes):
 				run_single_command(command, cmd)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		return 1
 	elif command == 'submit':
 		os.makedirs(job_output_dir, exist_ok=True)
-		num_nodes = set([])
-		for n in [unbalanced_sweep.num_nodes()]:
-			num_nodes.update(n)
-		for n in sorted(n):
+		num_nodes = all_num_nodes()
+		for n in num_nodes:
 			job_script_name = create_job_script(n)
 		return 1
 	elif command == 'process':
 		os.makedirs(output_dir, exist_ok=True)
 		results = get_all_results()
 		results = averaged_results(results)
-		unbalanced_sweep.generate_plots(results)
+		generate_plots(results)
 		return 1
 
 	elif command == 'archive':
