@@ -114,9 +114,17 @@ def generate_plots(results):
 										   and r['lewi'] == lewi \
 										   and r['drom'] == drom \
 										   and r['policy'] == policy]
+
+							# Index in the output for the time value
+							idx_iter = 5 + appranks
+							for r,times in res:
+								assert r['params'][idx_iter-1] == ':'
+								assert r['params'][idx_iter][0:5] == 'iter='
+								assert len(r['params']) == idx_iter+1
+
 							mems = sorted(set([from_mem(r['params'][2]) for r,times in res]))
-							iters = sorted(set([int(r['params'][9][5:]) for r,times in res]))
 							if len(mems) > 0:
+								iters = sorted(set([int(r['params'][idx_iter][5:]) for r,times in res]))
 															
 								with PdfPages('output/%s' % title) as pdf:
 									maxy = 0
@@ -126,7 +134,7 @@ def generate_plots(results):
 										for iter_num in iters:
 											t = [times for r,times in res \
 												if from_mem(r['params'][2]) == mem \
-													and int(r['params'][9][5:]) == iter_num]
+													and int(r['params'][idx_iter][5:]) == iter_num]
 											if len(t) == 1:
 												xx.append(iter_num)
 												yy.append(average(t[0]))

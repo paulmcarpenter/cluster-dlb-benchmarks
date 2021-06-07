@@ -144,7 +144,7 @@ def averaged_results(results):
 			times[key] = []
 		times[key].append(time)
 	avg = []
-	for key,timelist in sorted(times.items()):
+	for key,timelist in times.items():
 		avg.append( (dict(key), timelist) )
 	return avg
 
