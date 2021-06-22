@@ -21,7 +21,7 @@ Get exactly two nodes and run:
 
 # How to generate the plots
 
-	./run-benchmarks.py genplots
+	./run-benchmarks.py process
 
 # How to remove current results
 
