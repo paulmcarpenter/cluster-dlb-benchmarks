@@ -14,7 +14,7 @@ except ImportError:
 	pass
 
 # Template to create the command to run the benchmark
-command_template = ' '.join(['runhybrid.py --debug false --vranks $vranks --local --degree $degree --monitor 20',
+command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory --debug false --vranks $vranks --local --degree $degree --monitor 20',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/mpi-load-balance 10 2400 10'])
 
@@ -57,6 +57,9 @@ def get_values(results, field):
 	values = set([])
 	for r, times in results:
 		values.add(r[field])
+		if field =='appranks' and r[field] == '':
+			print(r)
+	print(f'values for {field} is {values}')
 	return sorted(values)
 
 def average(l):
@@ -65,6 +68,7 @@ def average(l):
 def generate_plots(results):
 	# Keep only results for correct executable
 	results = [ (r,times) for (r,times) in results if r['executable'] == 'build/mpi-load-balance']
+	#print(f'results={results}')
 
 	policies = get_values(results, 'policy')
 	degrees = get_values(results, 'degree')

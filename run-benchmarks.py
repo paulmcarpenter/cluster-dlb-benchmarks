@@ -62,6 +62,8 @@ def run_single_command(cmd, command=None, keep_output=True):
 	global verbose
 	if keep_output:
 		job_output_file = unique_output_name(job_output_dir, command + '_', '.txt')
+		hybrid_directory = job_output_file[:-4] + '.hybrid'
+		cmd = Template(cmd).substitute(hybrid_directory = hybrid_directory)
 		if not dry_run:
 			with open(job_output_file, 'w') as fp:
 				print(cmd, file=fp)

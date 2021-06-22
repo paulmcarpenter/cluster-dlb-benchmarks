@@ -14,7 +14,7 @@ except ImportError:
 	pass
 
 # Template to create the command to run the benchmark
-command_template = ' '.join(['runhybrid.py --debug false --vranks $vranks --local --degree $degree --local-period 120 --monitor 200',
+command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory --debug false --vranks $vranks --local --degree $degree --local-period 120 --monitor 200',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/synthetic_unbalanced 10 480 $memsize $noflush $costs'])
 
