@@ -59,7 +59,7 @@ def get_values(results, field):
 		values.add(r[field])
 		if field =='appranks' and r[field] == '':
 			print(r)
-	print(f'values for {field} is {values}')
+	#print(f'values for {field} is {values}')
 	return sorted(values)
 
 def average(l):
@@ -108,7 +108,7 @@ def generate_plots(results):
 									for step in range(0,nsteps):
 										t = [times for r,times in res \
 											if int(r['rank']) == rank and int(r['step']) == step]
-										print(f'degree={degree} rank={rank} step={step} t={t}')
+										#print(f'degree={degree} rank={rank} step={step} t={t}')
 										if len(t) == 1:
 											xx.append(step)
 											yy.append(average(t[0]) / 1000.0)
