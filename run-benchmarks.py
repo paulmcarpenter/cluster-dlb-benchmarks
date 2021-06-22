@@ -25,6 +25,7 @@ include_synthetic = True
 include_micropp = True
 verbose = True
 dry_run = False
+qos = 'bsc_cs'
 
 # Fixed working/output directories
 job_output_dir = 'jobs/'
@@ -36,7 +37,7 @@ job_script_template = """#! /bin/bash
 #SBATCH --nodes=$num_nodes
 #SBATCH --cpus-per-task=48
 #SBATCH --time=02:00:00
-#SBATCH --qos=bsc_cs
+#SBATCH --qos=$qos
 #SBATCH --output=$job_name.out
 #SBATCH --error=$job_name.err
 
@@ -78,6 +79,9 @@ def run_single_command(cmd, command=None, keep_output=True):
 		s = subprocess.run(full_cmd, shell=True)
 	
 def create_job_script(num_nodes):
+	if qos == 'debug' and num_nodes > 4:
+		print('Cannot run >4 nodes on debug queue')
+		return None
 	job_name = unique_output_name(job_output_dir, 'batch%d_' % num_nodes)
 	t = Template(job_script_template)
 	job_script_name = job_name + '.job'
@@ -93,7 +97,7 @@ def create_job_script(num_nodes):
 		args_list.append('--dry-run')
 	args = ' '.join(args_list)
 	with open(job_script_name, 'w') as fp:
-		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args), file = fp)
+		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args, qos=qos), file = fp)
 	return job_script_name
 
 def submit_job_script(job_script_name):
@@ -215,6 +219,7 @@ def Usage():
 	print(' --no-micropp            Do not include micropp benchmarks')
 	print(' --quiet                 Less verbose output')
 	print(' --dry-run               Show commands to run but do not run them')
+	print(' --qos queue             Choose queue')
 	print('Commands:')
 	print('make                     Run make')
 	print('interactive              Run interactively')
@@ -228,6 +233,7 @@ def main(argv):
 	global include_micropp
 	global verbose
 	global dry_run
+	global qos
 
 	if not canImportNumpy:
 		if len(argv) >= 2 and argv[1] == '--recurse':
@@ -238,7 +244,7 @@ def main(argv):
 
 	try:
 		opts, args = getopt.getopt( argv[1:],
-									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run'])
+									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run', 'qos='])
 
 	except getopt.error as msg:
 		print(msg)
@@ -258,6 +264,8 @@ def main(argv):
 			include_micropp = False
 		elif o == '--dry-run':
 			dry_run = True
+		elif o == '--qos':
+			qos = a
 		else:
 			assert False
 	
@@ -303,7 +311,7 @@ def main(argv):
 		num_nodes = all_num_nodes()
 		for n in num_nodes:
 			job_script_name = create_job_script(n)
-			if not dry_run:
+			if (not dry_run) and (not job_script_name is None):
 				submit_job_script(job_script_name)
 		return 1
 	elif command == 'process':
