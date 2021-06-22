@@ -52,8 +52,8 @@ int main( int argc, char *argv[] )
     mywork = work[id];
 
 	/* Get physical nodes for this process */
-	int master_node = nanos6_get_cluster_node_id();
-	int num_nodes = nanos6_get_num_cluster_nodes();
+	int master_node = nanos6_get_cluster_physical_node_id();
+	int num_nodes = nanos6_get_num_cluster_physical_nodes();
 	for (int i=0; i<nproc; i++) {
 		if (i == id) {
 			printf("Application rank %d of %d: master on node %d\n", id, nproc, master_node);
@@ -71,7 +71,7 @@ int main( int argc, char *argv[] )
         for(task=0; task<ntasks; task++) {
             #pragma oss task out(ranks[task;1]) 
             {
-                int rank = nanos6_get_cluster_node_id();  // physical node not irank
+                int rank = nanos6_get_cluster_physical_node_id();  // physical node not irank
 				wait(mywork);
                 ranks[task] = rank;
 
