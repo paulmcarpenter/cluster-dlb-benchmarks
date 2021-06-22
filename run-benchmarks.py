@@ -113,6 +113,7 @@ def get_from_command(regex, desc, command, filename):
 def get_file_results(filename, results):
 	re_result = re.compile('# ([-a-zA-Z0-9./_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) (sec|ms)')
 	with open(os.path.join(job_output_dir, filename)) as fp:
+		keys = set()
 		command = fp.readline()
 		drom = get_from_command('dlb.enable_drom=(true|false)', 'dlb.enable_drom', command, filename)
 		lewi = get_from_command('dlb.enable_lewi=(true|false)', 'dlb.enable_lewi', command, filename)
@@ -136,6 +137,10 @@ def get_file_results(filename, results):
 				r['policy'] = policy
 				time = float(m.group(5))
 				results.append((r,time))
+				key = f"executable: {r['executable']} appranks: {r['appranks']} degree: {r['degree']} policy: {r['policy']} lewi: {r['lewi']} drom: {r['drom']}"
+				if not key in keys:
+					print(job_output_dir + '/' + filename + ':', key)
+				keys.add(key)
 
 
 def get_all_results():
