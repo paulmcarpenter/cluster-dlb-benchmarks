@@ -137,7 +137,7 @@ int main( int argc, char *argv[] )
 			target_max_imbalance = BASELINE_IMBALANCE + 0.1;
 		} else {
 			target_min_imbalance = 1.0;
-			target_max_imbalance = 1.19;
+			target_max_imbalance = 1.25;
 		}
 		if (imbalance >= target_min_imbalance && imbalance <= target_max_imbalance) {
 			printf("Imbalance %.5f OK (min=%.3f, max=%.3f)\n", imbalance, target_min_imbalance, target_max_imbalance);
