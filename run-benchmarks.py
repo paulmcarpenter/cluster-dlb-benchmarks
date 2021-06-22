@@ -83,6 +83,12 @@ def create_job_script(num_nodes):
 	job_script_name = job_name + '.job'
 	print(job_script_name)
 	args_list = []
+	if not verbose:
+		args_list.append('quiet')
+	if not include_synthetic:
+		args_list.append('--no-synthetic')
+	if not include_micropp:
+		args_list.append('--no-micropp')
 	if dry_run:
 		args_list.append('--dry-run')
 	args = ' '.join(args_list)
