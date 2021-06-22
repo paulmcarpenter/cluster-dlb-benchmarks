@@ -316,8 +316,12 @@ def main(argv):
 		num_nodes = all_num_nodes()
 		for n in num_nodes:
 			job_script_name = create_job_script(n)
-			if (not dry_run) and (not job_script_name is None):
-				submit_job_script(job_script_name)
+			if not job_script_name is None:
+				if dry_run:
+					for cmd in all_commands(n):
+						print(cmd)
+				else:
+					submit_job_script(job_script_name)
 		return 1
 	elif command == 'process':
 		os.makedirs(output_dir, exist_ok=True)
