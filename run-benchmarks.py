@@ -26,6 +26,7 @@ include_micropp = True
 verbose = True
 dry_run = False
 qos = 'bsc_cs'
+req_nodes = None
 
 # Fixed working/output directories
 job_output_dir = 'jobs/'
@@ -225,6 +226,7 @@ def Usage():
 	print(' --quiet                 Less verbose output')
 	print(' --dry-run               Show commands to run but do not run them')
 	print(' --qos queue             Choose queue')
+	print(' --nodes                 Number of nodes')
 	print('Commands:')
 	print('make                     Run make')
 	print('interactive              Run interactively')
@@ -239,6 +241,7 @@ def main(argv):
 	global verbose
 	global dry_run
 	global qos
+	global req_nodes
 
 	if not canImportNumpy:
 		if len(argv) >= 2 and argv[1] == '--recurse':
@@ -249,7 +252,7 @@ def main(argv):
 
 	try:
 		opts, args = getopt.getopt( argv[1:],
-									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run', 'qos='])
+									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run', 'qos=', 'nodes='])
 
 	except getopt.error as msg:
 		print(msg)
@@ -271,6 +274,8 @@ def main(argv):
 			dry_run = True
 		elif o == '--qos':
 			qos = a
+		elif o == '--nodes':
+			req_nodes = [int(n) for n in a.split(',')]
 		else:
 			assert False
 	
@@ -278,6 +283,10 @@ def main(argv):
 		return Usage()
 
 	command = args[0]
+	if not req_nodes is None:
+		if command != 'submit':
+			print('--nodes n only valid for submit command')
+			return 1
 
 	cwd = os.getcwd()
 
@@ -314,6 +323,15 @@ def main(argv):
 	elif command == 'submit':
 		os.makedirs(job_output_dir, exist_ok=True)
 		num_nodes = all_num_nodes()
+		if not req_nodes is None:
+			num_nodes = [n for n in num_nodes if n in req_nodes]
+		fail = False
+		for r in req_nodes:
+			if not r in num_nodes:
+				print(f'No experiment with {r} nodes')
+				fail = True
+		if fail:
+			return 1
 		for n in num_nodes:
 			job_script_name = create_job_script(n)
 			if not job_script_name is None:
