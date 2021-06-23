@@ -27,6 +27,7 @@ verbose = True
 dry_run = False
 qos = 'bsc_cs'
 req_nodes = None
+req_degree = None
 extrae = False
 
 # Fixed working/output directories
@@ -43,7 +44,8 @@ def Usage():
 	print(' --quiet                 Less verbose output')
 	print(' --dry-run               Show commands to run but do not run them')
 	print(' --qos queue             Choose queue')
-	print(' --nodes                 Number of nodes')
+	print(' --nodes n               Number of nodes')
+	print(' --degree d              Degree')
 	print(' --extrae                Generate extrae trace')
 	print('Commands:')
 	print('make                     Run make')
@@ -79,6 +81,18 @@ def unique_output_name(subdir, prefix="", suffix=""):
 		k = k + 1
 	print('Something went wrong')
 	sys.exit(1)
+
+def filter_command(cmd):
+	global req_degree
+	if req_degree is None:
+		return True
+	m = re.search(r'--degree ([1-9][0-9]*)', cmd)
+	if m:
+		d = int(m.group(1))
+		return d in req_degree
+	print('Command "%s" does not have --degree')
+	sys.exit(1)
+			
 
 def run_single_command(cmd, command=None, keep_output=True):
 	global verbose
@@ -252,6 +266,7 @@ def main(argv):
 	global dry_run
 	global qos
 	global req_nodes
+	global req_degree
 	global extrae
 
 	if not canImportNumpy:
@@ -263,7 +278,8 @@ def main(argv):
 
 	try:
 		opts, args = getopt.getopt( argv[1:],
-									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run', 'qos=', 'nodes=', 'extrae'])
+									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet',
+											'dry-run', 'qos=', 'nodes=', 'degree=', 'extrae'])
 
 	except getopt.error as msg:
 		print(msg)
@@ -287,6 +303,8 @@ def main(argv):
 			qos = a
 		elif o == '--nodes':
 			req_nodes = [int(n) for n in a.split(',')]
+		elif o == '--degree':
+			req_degree = [int(n) for n in a.split(',')]
 		elif o == '--extrae':
 			extrae = True
 		else:
@@ -299,6 +317,10 @@ def main(argv):
 	if not req_nodes is None:
 		if command != 'submit':
 			print('--nodes n only valid for submit command')
+			return 1
+	if not req_degree is None:
+		if command != 'submit' and command != 'interactive' and command != 'batch':
+			print('--degree d only valid for submit, interactive or batch command')
 			return 1
 	
 	hybrid_params_list = []
@@ -334,7 +356,8 @@ def main(argv):
 		num_nodes = check_num_nodes.get_num_nodes()
 		try:
 			for cmd in all_commands(num_nodes, hybrid_params):
-				run_single_command(cmd, command)
+				if filter_command(cmd):
+					run_single_command(cmd, command)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		return 1
@@ -355,7 +378,8 @@ def main(argv):
 			if not job_script_name is None:
 				if dry_run:
 					for cmd in all_commands(n, hybrid_params):
-						print(cmd)
+						if filter_command(cmd):
+							print(cmd)
 				else:
 					submit_job_script(job_script_name)
 		return 1
