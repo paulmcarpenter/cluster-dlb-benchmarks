@@ -364,13 +364,13 @@ def main(argv):
 	elif command == 'submit':
 		os.makedirs(job_output_dir, exist_ok=True)
 		num_nodes = all_num_nodes()
+		fail = False
 		if not req_nodes is None:
 			num_nodes = [n for n in num_nodes if n in req_nodes]
-		fail = False
-		for r in req_nodes:
-			if not r in num_nodes:
-				print(f'No experiment with {r} nodes')
-				fail = True
+			for r in req_nodes:
+				if not r in num_nodes:
+					print(f'No experiment with {r} nodes')
+					fail = True
 		if fail:
 			return 1
 		for n in num_nodes:
