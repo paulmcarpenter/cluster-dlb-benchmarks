@@ -14,7 +14,7 @@ except ImportError:
 	pass
 
 # Template to create the command to run the benchmark
-command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory --debug false --vranks $vranks --local --degree $degree --monitor 20',
+command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --local --degree $degree --monitor 20',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/mpi-load-balance 10 2400 10'])
 
@@ -42,14 +42,14 @@ def make():
 	return True
 	
 # Return the list of all commands to run
-def commands(num_nodes):
+def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
 	vranks = num_nodes * 2 # Start with fixed *2 oversubscription
 
 	for degree in list(range(1, num_nodes+1)):
 		for drom in ['true']: # ['true','false'] if degree != 1
 			for lewi in ['true']: # ['true','false'] if degree != 1
-				cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi)
+				cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, hybrid_params=hybrid_params)
 				yield cmd
 
 # Get all values of a field 

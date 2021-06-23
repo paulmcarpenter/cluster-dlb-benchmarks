@@ -14,7 +14,7 @@ except ImportError:
 	pass
 
 # Template to create the command to run the benchmark
-command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory --debug false --vranks $vranks --local --degree $degree --local-period 120 --monitor 200',
+command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --local --degree $degree --local-period 120 --monitor 200',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/synthetic_unbalanced 10 480 $memsize $noflush $costs'])
 
@@ -33,7 +33,7 @@ def make():
 	
 
 # Return the list of all commands to run
-def commands(num_nodes):
+def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
 	vranks = num_nodes * 2 # Start with fixed *2 oversubscription
 	if vranks == 4:
@@ -46,7 +46,7 @@ def commands(num_nodes):
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
 					for memsize in ['1', '1k', '10k', '100k', '1M', '10M', '20M', '40M']:
-						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, memsize=memsize, noflush=noflush, costs=costs)
+						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, memsize=memsize, noflush=noflush, costs=costs, hybrid_params=hybrid_params)
 						yield cmd
 
 # Convert memory size descriptor to number of bytes

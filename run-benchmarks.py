@@ -27,11 +27,31 @@ verbose = True
 dry_run = False
 qos = 'bsc_cs'
 req_nodes = None
+extrae = False
 
 # Fixed working/output directories
 job_output_dir = 'jobs/'
 output_dir = 'output/'
 archive_output_dir = 'archive/'
+
+def Usage():
+	print('./monitor.py <options> command')
+	print('where:')
+	print(' -h                      Show this help')
+	print(' --no-synthetic          Do not include synthetic benchmarks')
+	print(' --no-micropp            Do not include micropp benchmarks')
+	print(' --quiet                 Less verbose output')
+	print(' --dry-run               Show commands to run but do not run them')
+	print(' --qos queue             Choose queue')
+	print(' --nodes                 Number of nodes')
+	print(' --extrae                Generate extrae trace')
+	print('Commands:')
+	print('make                     Run make')
+	print('interactive              Run interactively')
+	print('submit                   Submit jobs')
+	print('process                  Generate plots')
+	print('archive                  Archive data')
+	return 1
 
 # Template for job script
 job_script_template = """#! /bin/bash
@@ -96,6 +116,8 @@ def create_job_script(num_nodes):
 		args_list.append('--no-micropp')
 	if dry_run:
 		args_list.append('--dry-run')
+	if extrae:
+		args_list.append('--extrae')
 	args = ' '.join(args_list)
 	with open(job_script_name, 'w') as fp:
 		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args, qos=qos), file = fp)
@@ -111,8 +133,11 @@ def get_from_command(regex, desc, command, filename):
 		sys.exit(1)
 	return m.group(1)
 
+
+
 def get_file_results(filename, results):
 	re_result = re.compile('# ([-a-zA-Z0-9./_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) (sec|ms)')
+	re_trace = re.compile('mv TRACE.mpits (.*)')
 	with open(os.path.join(job_output_dir, filename)) as fp:
 		keys = set()
 		command = fp.readline()
@@ -142,6 +167,9 @@ def get_file_results(filename, results):
 				if not key in keys:
 					print(job_output_dir + '/' + filename + ':', key)
 				keys.add(key)
+			m = re_trace.match(line)
+			if m:
+				print(' --> trace: ', m.group(1))
 
 
 def get_all_results():
@@ -194,12 +222,12 @@ def make():
 		ok = ok and micropp.make()
 	return ok
 
-def all_commands(num_nodes):
+def all_commands(num_nodes, hybrid_params):
 	if include_synthetic:
-		for cmd in unbalanced_sweep.commands(num_nodes):
+		for cmd in unbalanced_sweep.commands(num_nodes, hybrid_params):
 			yield cmd
 	if include_micropp:
-		for cmd in micropp.commands(num_nodes):
+		for cmd in micropp.commands(num_nodes, hybrid_params):
 			yield cmd
 
 def all_num_nodes():
@@ -217,24 +245,6 @@ def generate_plots(results):
 		micropp.generate_plots(results)
 		
 
-def Usage():
-	print('./monitor.py <options> command')
-	print('where:')
-	print(' -h                      Show this help')
-	print(' --no-synthetic          Do not include synthetic benchmarks')
-	print(' --no-micropp            Do not include micropp benchmarks')
-	print(' --quiet                 Less verbose output')
-	print(' --dry-run               Show commands to run but do not run them')
-	print(' --qos queue             Choose queue')
-	print(' --nodes                 Number of nodes')
-	print('Commands:')
-	print('make                     Run make')
-	print('interactive              Run interactively')
-	print('submit                   Submit jobs')
-	print('process                  Generate plots')
-	print('archive                  Archive data')
-	return 1
-
 def main(argv):
 	global include_synthetic
 	global include_micropp
@@ -242,6 +252,7 @@ def main(argv):
 	global dry_run
 	global qos
 	global req_nodes
+	global extrae
 
 	if not canImportNumpy:
 		if len(argv) >= 2 and argv[1] == '--recurse':
@@ -252,7 +263,7 @@ def main(argv):
 
 	try:
 		opts, args = getopt.getopt( argv[1:],
-									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run', 'qos=', 'nodes='])
+									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet', 'dry-run', 'qos=', 'nodes=', 'extrae'])
 
 	except getopt.error as msg:
 		print(msg)
@@ -276,6 +287,8 @@ def main(argv):
 			qos = a
 		elif o == '--nodes':
 			req_nodes = [int(n) for n in a.split(',')]
+		elif o == '--extrae':
+			extrae = True
 		else:
 			assert False
 	
@@ -287,6 +300,11 @@ def main(argv):
 		if command != 'submit':
 			print('--nodes n only valid for submit command')
 			return 1
+	
+	hybrid_params_list = []
+	if extrae:
+		hybrid_params_list.append('--extrae')
+	hybrid_params = ' '.join(hybrid_params_list)
 
 	cwd = os.getcwd()
 
@@ -315,7 +333,7 @@ def main(argv):
 			return 2
 		num_nodes = check_num_nodes.get_num_nodes()
 		try:
-			for cmd in all_commands(num_nodes):
+			for cmd in all_commands(num_nodes, hybrid_params):
 				run_single_command(cmd, command)
 		except KeyboardInterrupt:
 			print('Interrupted')
@@ -336,7 +354,7 @@ def main(argv):
 			job_script_name = create_job_script(n)
 			if not job_script_name is None:
 				if dry_run:
-					for cmd in all_commands(n):
+					for cmd in all_commands(n, hybrid_params):
 						print(cmd)
 				else:
 					submit_job_script(job_script_name)
