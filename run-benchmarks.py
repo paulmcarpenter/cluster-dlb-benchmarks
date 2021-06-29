@@ -30,6 +30,7 @@ req_nodes = None
 req_degree = None
 req_policies = None
 extrae = False
+output_prefix = None
 
 # Fixed working/output directories
 job_output_dir = 'jobs/'
@@ -49,6 +50,7 @@ def Usage():
 	print(' --degree d              Degree')
 	print(' --extrae                Generate extrae trace')
 	print(' --local, --global       Specify allocation policy')
+	print(' --output-prefix         Prefix for filenames in output plots')
 	print('Commands:')
 	print('make                     Run make')
 	print('interactive              Run interactively')
@@ -263,10 +265,12 @@ def all_num_nodes():
 	return sorted(num_nodes)
 
 def generate_plots(results):
+	global output_prefix
+	output_prefix_str = output_prefix if not output_prefix is None else ''
 	if include_synthetic:
-		unbalanced_sweep.generate_plots(results)
+		unbalanced_sweep.generate_plots(results, output_prefix_str)
 	if include_micropp:
-		micropp.generate_plots(results)
+		micropp.generate_plots(results, output_prefix_str)
 		
 
 def main(argv):
@@ -279,6 +283,7 @@ def main(argv):
 	global req_degree
 	global req_policies
 	global extrae
+	global output_prefix
 
 	if not canImportNumpy:
 		if len(argv) >= 2 and argv[1] == '--recurse':
@@ -291,7 +296,7 @@ def main(argv):
 		opts, args = getopt.getopt( argv[1:],
 									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet',
 											'dry-run', 'qos=', 'nodes=', 'degree=', 'extrae',
-											'local', 'global'])
+											'local', 'global', 'output-prefix='])
 
 	except getopt.error as msg:
 		print(msg)
@@ -323,6 +328,8 @@ def main(argv):
 			req_policies = ['local']
 		elif o == '--global':
 			req_policies = ['global']
+		elif o == '--output-prefix':
+			output_prefix = a
 		else:
 			assert False
 	
@@ -337,6 +344,10 @@ def main(argv):
 	if not req_degree is None:
 		if command != 'submit' and command != 'interactive' and command != 'batch':
 			print('--degree d only valid for submit, interactive or batch command')
+			return 1
+	if not output_prefix is None:
+		if command != 'process':
+			print('--output-prefix only valid for process command')
 			return 1
 	
 	hybrid_params_list = []

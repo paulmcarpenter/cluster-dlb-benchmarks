@@ -66,7 +66,7 @@ def get_values(results, field):
 def average(l):
 	return 1.0 * sum(l) / len(l)
 
-def generate_plots(results):
+def generate_plots(results, output_prefix_str):
 	# Keep only results for correct executable
 	results = [ (r,times) for (r,times) in results if r['executable'] == 'build/mpi-load-balance']
 	#print(f'results={results}')
@@ -101,7 +101,7 @@ def generate_plots(results):
 						if len(res) > 0:
 							nsteps = 1+max([int(r['step']) for (r,times) in results])
 
-							with PdfPages('output/%s' % title) as pdf:
+							with PdfPages('output/%s%s' % (output_prefix_str,title)) as pdf:
 								maxy = 0
 								for rank in range(0, appranks):
 									xx = []

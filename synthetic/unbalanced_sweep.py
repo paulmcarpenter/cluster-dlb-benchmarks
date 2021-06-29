@@ -80,7 +80,7 @@ def get_values(results, field):
 def average(l):
 	return 1.0 * sum(l) / len(l)
 
-def generate_plots(results):
+def generate_plots(results, output_prefix_str):
 
 	# Keep only results for correct executable
 	results = [ (r,times) for (r,times) in results if r['executable'] == 'build/synthetic_unbalanced']
@@ -127,7 +127,7 @@ def generate_plots(results):
 							if len(mems) > 0:
 								iters = sorted(set([int(r['params'][idx_iter][5:]) for r,times in res]))
 															
-								with PdfPages('output/%s' % title) as pdf:
+								with PdfPages('output/%s%s' % (output_prefix_str,title)) as pdf:
 									maxy = 0
 									for mem in mems:
 										xx = []
