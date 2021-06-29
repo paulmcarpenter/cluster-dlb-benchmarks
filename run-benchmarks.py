@@ -28,6 +28,7 @@ dry_run = False
 qos = 'bsc_cs'
 req_nodes = None
 req_degree = None
+req_policies = None
 extrae = False
 
 # Fixed working/output directories
@@ -47,6 +48,7 @@ def Usage():
 	print(' --nodes n               Number of nodes')
 	print(' --degree d              Degree')
 	print(' --extrae                Generate extrae trace')
+	print(' --local, --global       Specify allocation policy')
 	print('Commands:')
 	print('make                     Run make')
 	print('interactive              Run interactively')
@@ -84,14 +86,22 @@ def unique_output_name(subdir, prefix="", suffix=""):
 
 def filter_command(cmd):
 	global req_degree
-	if req_degree is None:
-		return True
-	m = re.search(r'--degree ([1-9][0-9]*)', cmd)
-	if m:
-		d = int(m.group(1))
-		return d in req_degree
-	print('Command "%s" does not have --degree')
-	sys.exit(1)
+	global req_policies
+	filters = [(r'--degree ([1-9][0-9]*)', 'degree', [str(s) for s in req_degree] if not req_degree is None else None),
+			   (r'--(local|global)', 'policy', req_policies)]
+	for (regex, param_str, values) in filters:
+		if not values is None:
+			m = re.search(regex, cmd)
+			if m:
+				if not m.group(1) in values:
+					# Does not match
+					g = m.group(1)
+					return False
+			else:
+				print('Command "%s" does not specify ', param_str)
+				sys.exit(1)
+	# All match
+	return True
 			
 
 def run_single_command(cmd, command=None, keep_output=True):
@@ -267,6 +277,7 @@ def main(argv):
 	global qos
 	global req_nodes
 	global req_degree
+	global req_policies
 	global extrae
 
 	if not canImportNumpy:
@@ -279,7 +290,8 @@ def main(argv):
 	try:
 		opts, args = getopt.getopt( argv[1:],
 									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet',
-											'dry-run', 'qos=', 'nodes=', 'degree=', 'extrae'])
+											'dry-run', 'qos=', 'nodes=', 'degree=', 'extrae',
+											'local', 'global'])
 
 	except getopt.error as msg:
 		print(msg)
@@ -307,6 +319,10 @@ def main(argv):
 			req_degree = [int(n) for n in a.split(',')]
 		elif o == '--extrae':
 			extrae = True
+		elif o == '--local':
+			req_policies = ['local']
+		elif o == '--global':
+			req_policies = ['global']
 		else:
 			assert False
 	
