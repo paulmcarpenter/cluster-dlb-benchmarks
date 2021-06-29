@@ -389,14 +389,20 @@ def main(argv):
 		return 0
 	elif command == 'interactive' or command == 'batch':
 		os.makedirs(job_output_dir, exist_ok=True)
-		if not check_num_nodes.get_on_compute_node():
-			print('run-benchmarks.py interactive must be run on a compute node')
-			return 2
-		num_nodes = check_num_nodes.get_num_nodes()
+
+		if check_num_nodes.get_on_compute_node():
+			nums_nodes = [check_num_nodes.get_num_nodes()]
+		else:
+			if not dry_run:
+				print('run-benchmarks.py interactive must be run on a compute node')
+				return 2
+			nums_nodes = [2,4]
+
 		try:
-			for cmd in all_commands(num_nodes, hybrid_params):
-				if filter_command(cmd):
-					run_single_command(cmd, command)
+			for num_nodes in nums_nodes:
+				for cmd in all_commands(num_nodes, hybrid_params):
+					if filter_command(cmd):
+						run_single_command(cmd, command)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		return 1
