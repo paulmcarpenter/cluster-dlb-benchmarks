@@ -80,6 +80,9 @@ def get_values(results, field):
 def average(l):
 	return 1.0 * sum(l) / len(l)
 
+noflush_str = ['flush', 'noflush']
+
+
 def generate_plots(results, output_prefix_str):
 
 	# Keep only results for correct executable
@@ -88,14 +91,15 @@ def generate_plots(results, output_prefix_str):
 	policies = get_values(results, 'policy')
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
+	niters = 1 + max([int(x) for x in get_values(results, 'iter')])
 
+	# Generate time series plots
 	for appranks in apprankss:
 		for policy in policies:
 			for degree in degrees:
 				for noflush in [0,1]:
 					for lewi in ['true', 'false']:
 						for drom in ['true', 'false']: 
-							noflush_str = 'noflush' if noflush==1 else 'flush'
 							if lewi == 'true':
 								if drom == 'true':
 									dlb_str = 'dlb'
@@ -106,7 +110,7 @@ def generate_plots(results, output_prefix_str):
 									dlb_str = 'drom'
 								else:
 									dlb_str = 'nodlb'
-							title = 'unbalanced-sweep-appranks%d-%s-deg%d-%s-%s.pdf' % (appranks, policy, degree, noflush_str, dlb_str)
+							title = 'unbalanced-sweep-appranks%d-%s-deg%d-%s-%s.pdf' % (appranks, policy, degree, noflush_str[noflush], dlb_str)
 
 							res = [ (r,times) for (r,times) in results \
 										if r['appranks'] == appranks \
@@ -150,6 +154,51 @@ def generate_plots(results, output_prefix_str):
 									plt.legend()
 									pdf.savefig()
 									plt.close()
+
+	# Generate barcharts
+	mems = sorted(set([from_mem(r['params'][2]) for r,times in results]))
+	for mem in mems:
+		with PdfPages('output/%sunbalanced-%s-barcharts.pdf' % (output_prefix_str, format_mem(mem))) as pdf:
+			lewi = 'true'
+			drom = 'true'
+			groups = [ (nf,a,p) for nf in [0,1] for a in [4,8] for p in ['local','global']]
+			for k,degree in enumerate(degrees):
+				avgs = []
+				stdevs = []
+				for (noflush, appranks, policy) in groups:
+					curr = [ (r,times) for (r,times) in results \
+								if r['appranks'] == appranks \
+								   and r['degree'] == degree \
+								   and int(r['params'][3]) == noflush \
+								   and r['lewi'] == lewi \
+								   and r['drom'] == drom \
+								   and r['policy'] == policy \
+								   and from_mem(r['params'][2]) == mem \
+								   and int(r['iter']) >= niters * 0.67 ]
+					#print(f'mem={mem} curr={curr}')
+					vals = []
+					for i in range(0,niters):
+						curr2 = [average(times) for r,times in curr if int(r['iter']) == i]
+						if len(curr2) > 0:
+							vals.append(max(curr2))
+
+					if len(vals) > 0:
+						avg = average(vals)
+						stdev = np.std(vals)
+					else:
+						avg = 0
+						stdev = 0
+					avgs.append(avg)
+					stdevs.append(stdev)
+				ind = np.arange(len(avgs))
+				width = 0.2
+				plt.bar(ind + k * width, avgs, width, yerr=stdev, label='degree %d' % degree)
+			plt.xticks(ind + 2*width, ['%s %d %s' % (noflush_str[nf],a,p) for (nf,a,p) in groups], rotation=20, wrap=True)
+			plt.legend(loc='best')
+			pdf.savefig()
+			plt.close()
+
+
 
 
 if __name__ == '__main__':
