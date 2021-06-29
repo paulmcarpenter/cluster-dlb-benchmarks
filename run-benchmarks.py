@@ -31,6 +31,7 @@ req_degree = None
 req_policies = None
 extrae = False
 output_prefix = None
+archived_subfolder = None
 
 # Fixed working/output directories
 job_output_dir = 'jobs/'
@@ -51,6 +52,7 @@ def Usage():
 	print(' --extrae                Generate extrae trace')
 	print(' --local, --global       Specify allocation policy')
 	print(' --output-prefix         Prefix for filenames in output plots')
+	print(' --archived              Subfolder of archive/ with results')
 	print('Commands:')
 	print('make                     Run make')
 	print('interactive              Run interactively')
@@ -152,24 +154,24 @@ def create_job_script(num_nodes):
 def submit_job_script(job_script_name):
 	run_single_command(f'sbatch {job_script_name}', None, False)
 
-def get_from_command(regex, desc, command, filename):
+def get_from_command(regex, desc, command, fullname):
 	m = re.search(regex, command)
 	if not m:
-		print('%s not defined in the command for %s', desc, filename)
+		print('%s not defined in the command for %s', desc, fullname)
 		sys.exit(1)
 	return m.group(1)
 
 
 
-def get_file_results(filename, results):
+def get_file_results(fullname, results):
 	re_result = re.compile('# ([-a-zA-Z0-9./_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) (sec|ms)')
 	re_trace = re.compile('mv TRACE.mpits (.*)')
-	with open(os.path.join(job_output_dir, filename)) as fp:
+	with open(fullname) as fp:
 		keys = set()
 		command = fp.readline()
-		drom = get_from_command('dlb.enable_drom=(true|false)', 'dlb.enable_drom', command, filename)
-		lewi = get_from_command('dlb.enable_lewi=(true|false)', 'dlb.enable_lewi', command, filename)
-		policy = get_from_command(' --(local|global)', 'policy', command, filename)
+		drom = get_from_command('dlb.enable_drom=(true|false)', 'dlb.enable_drom', command, fullname)
+		lewi = get_from_command('dlb.enable_lewi=(true|false)', 'dlb.enable_lewi', command, fullname)
+		policy = get_from_command(' --(local|global)', 'policy', command, fullname)
 
 		for line in fp.readlines():
 			m = re_result.match(line)
@@ -191,7 +193,7 @@ def get_file_results(filename, results):
 				results.append((r,time))
 				key = f"executable: {r['executable']} appranks: {r['appranks']} degree: {r['degree']} policy: {r['policy']} lewi: {r['lewi']} drom: {r['drom']}"
 				if not key in keys:
-					print(job_output_dir + '/' + filename + ':', key)
+					print(fullname + ':', key)
 				keys.add(key)
 			m = re_trace.match(line)
 			if m:
@@ -199,13 +201,16 @@ def get_file_results(filename, results):
 
 
 def get_all_results():
-	filenames = os.listdir(job_output_dir)
+	output_dir = job_output_dir
+	if not archived_subfolder is None:
+		output_dir = os.path.join(archive_output_dir, archived_subfolder)
+	filenames = os.listdir(output_dir)
 	re_filename = re.compile('(interactive|batch)_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9]*-[0-9]*.*\.txt$')
 	# build/synthetic_unbalanced appranks=4 deg=1 10 480 1k 0 48.6 16.0 2.5 2.0 : iter=0 time=0.54 sec
 	results = []
 	for filename in filenames:
 		if re_filename.match(filename):
-			get_file_results(filename, results)
+			get_file_results(os.path.join(output_dir, filename), results)
 	return results
 	
 def averaged_results(results):
@@ -284,6 +289,7 @@ def main(argv):
 	global req_policies
 	global extrae
 	global output_prefix
+	global archived_subfolder
 
 	if not canImportNumpy:
 		if len(argv) >= 2 and argv[1] == '--recurse':
@@ -296,7 +302,7 @@ def main(argv):
 		opts, args = getopt.getopt( argv[1:],
 									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet',
 											'dry-run', 'qos=', 'nodes=', 'degree=', 'extrae',
-											'local', 'global', 'output-prefix='])
+											'local', 'global', 'output-prefix=', 'archived='])
 
 	except getopt.error as msg:
 		print(msg)
@@ -330,6 +336,8 @@ def main(argv):
 			req_policies = ['global']
 		elif o == '--output-prefix':
 			output_prefix = a
+		elif o == '--archived':
+			archived_subfolder = a
 		else:
 			assert False
 	
@@ -348,6 +356,10 @@ def main(argv):
 	if not output_prefix is None:
 		if command != 'process':
 			print('--output-prefix only valid for process command')
+			return 1
+	if not archived_subfolder is None:
+		if command != 'process':
+			printf('--archived only valid for process command')
 			return 1
 	
 	hybrid_params_list = []
