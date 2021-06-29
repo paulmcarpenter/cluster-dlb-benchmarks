@@ -75,6 +75,7 @@ def generate_plots(results, output_prefix_str):
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
 
+	# Generate time series plots
 	for appranks in apprankss:
 		for policy in policies:
 			for degree in degrees:
@@ -124,6 +125,48 @@ def generate_plots(results, output_prefix_str):
 								plt.legend()
 								pdf.savefig()
 								plt.close()
+	
+	# Generate barcharts
+	with PdfPages('output/%smicropp-barcharts.pdf' % output_prefix_str) as pdf:
+		lewi = 'true'
+		drom = 'true'
+		groups = [(4, 'local'), (4, 'global'), (8, 'local'), (8, 'global')]
+		for k,degree in enumerate(degrees):
+			avgs = []
+			stdevs = []
+			for (appranks, policy) in groups:
+				curr = [ (r,times) for (r,times) in results \
+							if r['appranks'] == appranks \
+							   and r['degree'] == degree \
+							   and r['lewi'] == lewi \
+							   and r['drom'] == drom \
+							   and r['policy'] == policy \
+							   and int(r['step']) >= nsteps*0.67  ] 
+				vals = []
+				for step in range(0,nsteps):
+					curr2 = [average(times) for r,times in curr if int(r['step']) == step]
+					if len(curr2) > 0:
+						vals.append(max(curr2))
+
+				if len(vals) > 0:
+					avg = average(vals)
+					stdev = np.std(vals)
+				else:
+					avg = 0
+					stdev = 0
+				avgs.append(avg)
+				stdevs.append(stdev)
+			ind = np.arange(len(avgs))
+			width = 0.2
+			plt.bar(ind + k * width, avgs, width, yerr=stdev, label='degree %d' % degree)
+		plt.xticks(ind + 2*width, ['%d %s' % g for g in groups])
+		plt.legend(loc='best')
+		pdf.savefig()
+		plt.close()
+	sys.exit(1)
+
+
+	
 
 
 if __name__ == '__main__':
