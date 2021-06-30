@@ -346,8 +346,8 @@ def main(argv):
 
 	command = args[0]
 	if not req_nodes is None:
-		if command != 'submit':
-			print('--nodes n only valid for submit command')
+		if not (command == 'submit' or dry_run) :
+			print('--nodes n only valid for submit command or with --dry-run')
 			return 1
 	if not req_degree is None:
 		if command != 'submit' and command != 'interactive' and command != 'batch':
@@ -396,7 +396,10 @@ def main(argv):
 			if not dry_run:
 				print('run-benchmarks.py interactive must be run on a compute node')
 				return 2
-			nums_nodes = [2,4]
+			if req_nodes is None:
+				nums_nodes = [2,4,8]
+			else:
+				nums_nodes = req_nodes
 
 		try:
 			for num_nodes in nums_nodes:
