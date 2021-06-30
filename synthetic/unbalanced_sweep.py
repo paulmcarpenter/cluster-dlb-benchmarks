@@ -180,7 +180,7 @@ def generate_plots(results, output_prefix_str):
 					for i in range(0,niters):
 						curr2 = [average(times) for r,times in curr if int(r['iter']) == i]
 						if len(curr2) > 0:
-							vals.append(max(curr2))
+							vals.append(average(curr2))
 
 					if len(vals) > 0:
 						avg = average(vals)
@@ -198,6 +198,44 @@ def generate_plots(results, output_prefix_str):
 			pdf.savefig()
 			plt.close()
 
+	# Generate plot as function of memory
+	mems = sorted(set([from_mem(r['params'][2]) for r,times in results]))
+	for appranks in [4,8]:
+		groups = [ (nf,p) for nf in [0,1] for p in ['local','global']]
+		with PdfPages('output/%sunbalanced-sweep-appranks-%d.pdf' % (output_prefix_str,appranks)) as pdf:
+			for (noflush, policy) in groups:
+				for degree in degrees:
+					lewi = 'true'
+					drom = 'true'
+					curr = [ (r,times) for (r,times) in results \
+								if r['appranks'] == appranks \
+								   and r['degree'] == degree \
+								   and int(r['params'][3]) == noflush \
+								   and r['lewi'] == lewi \
+								   and r['drom'] == drom \
+								   and r['policy'] == policy \
+								   and int(r['iter']) >= niters * 0.67 ]
+					#print(f'mem={mem} curr={curr}')
+					xx = [] # memory
+					yy = [] # time
+					for mem in mems:
+						vals = [] # All iterations for this amount of memory
+						for i in range(0,niters):
+							curr2 = [average(times) for r,times in curr if int(r['iter']) == i and from_mem(r['params'][2]) == mem]
+							if len(curr2) > 0:
+								vals.append(max(curr2))
+						print(f'nf={noflush} a={appranks} p={policy} deg={degree} mem={mem} vals={vals}')
+						if len(vals) > 0:
+							yy.append(average(vals))
+							xx.append(mem)
+					plt.plot(xx, yy, label = '%s appranks=%d %s deg=%d' % (noflush_str[noflush], appranks, policy, degree))
+
+			plt.xlabel('Memory footprint')
+			plt.ylabel('Execution time (s)')
+			plt.ylim(0,1)
+			plt.legend(loc='best')
+			pdf.savefig()
+			plt.close()
 
 
 
