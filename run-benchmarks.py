@@ -39,7 +39,7 @@ output_dir = 'output/'
 archive_output_dir = 'archive/'
 
 def Usage():
-	print('./monitor.py <options> command')
+	print('./run-benchmarks.py <options> command')
 	print('where:')
 	print(' -h                      Show this help')
 	print(' --no-synthetic          Do not include synthetic benchmarks')
