@@ -130,7 +130,7 @@ def generate_plots(results, output_prefix_str):
 	with PdfPages('output/%smicropp-barcharts.pdf' % output_prefix_str) as pdf:
 		lewi = 'true'
 		drom = 'true'
-		groups = [(4, 'local'), (4, 'global'), (8, 'local'), (8, 'global')]
+		groups = [(4, 'local'), (4, 'global'), (8, 'local'), (8, 'global'), (16, 'local'), (16, 'global')]
 		for k,degree in enumerate(degrees):
 			avgs = []
 			stdevs = []
@@ -157,7 +157,7 @@ def generate_plots(results, output_prefix_str):
 				avgs.append(avg)
 				stdevs.append(stdev)
 			ind = np.arange(len(avgs))
-			width = 0.2
+			width = 0.1
 			plt.bar(ind + k * width, avgs, width, yerr=stdev, label='degree %d' % degree)
 		plt.xticks(ind + 2*width, ['%d %s' % g for g in groups])
 		plt.legend(loc='best')
