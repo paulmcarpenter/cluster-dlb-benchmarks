@@ -108,10 +108,10 @@ def filter_command(cmd):
 	return True
 			
 
-def run_single_command(cmd, command=None, keep_output=True):
+def run_single_command(cmd, command=None, keep_output=True, num_nodes=None):
 	global verbose
 	if keep_output:
-		job_output_file = unique_output_name(job_output_dir, command + '_', '.txt')
+		job_output_file = unique_output_name(job_output_dir, f'{command}{num_nodes}_', '.txt')
 		hybrid_directory = job_output_file[:-4] + '.hybrid'
 		cmd = Template(cmd).substitute(hybrid_directory = hybrid_directory)
 		if not dry_run:
@@ -152,7 +152,7 @@ def create_job_script(num_nodes):
 	return job_script_name
 
 def submit_job_script(job_script_name):
-	run_single_command(f'sbatch {job_script_name}', None, False)
+	run_single_command(f'sbatch {job_script_name}', None, keep_output=False)
 
 def get_from_command(regex, desc, command, fullname):
 	m = re.search(regex, command)
@@ -205,7 +205,7 @@ def get_all_results():
 	if not archived_subfolder is None:
 		output_dir = os.path.join(archive_output_dir, archived_subfolder)
 	filenames = os.listdir(output_dir)
-	re_filename = re.compile('(interactive|batch)_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9]*-[0-9]*.*\.txt$')
+	re_filename = re.compile('(interactive|batch)[1-9][0-9]*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9]*-[0-9]*.*\.txt$')
 	# build/synthetic_unbalanced appranks=4 deg=1 10 480 1k 0 48.6 16.0 2.5 2.0 : iter=0 time=0.54 sec
 	results = []
 	for filename in filenames:
@@ -405,7 +405,7 @@ def main(argv):
 			for num_nodes in nums_nodes:
 				for cmd in all_commands(num_nodes, hybrid_params):
 					if filter_command(cmd):
-						run_single_command(cmd, command)
+						run_single_command(cmd, command, keep_output=True, num_nodes=num_nodes)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		return 1
