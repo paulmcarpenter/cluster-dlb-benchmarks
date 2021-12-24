@@ -61,6 +61,14 @@ def Usage():
 	print('archive                  Archive data')
 	return 1
 
+def print_time(desc):
+	now = time.strftime('%d/%m/%Y %H:%M:%S')
+	print(f'{desc} {now}')
+
+def print_jobid():
+	jobid = os.environ.get('SLURM_JOBID', '<none>')
+	print(f'SLURM_JOBID: {jobid}')
+
 # Template for job script
 job_script_template = """#! /bin/bash
 #SBATCH --nodes=$num_nodes
@@ -388,7 +396,6 @@ def main(argv):
 		# Already ran 'make' above
 		return 0
 	elif command == 'interactive' or command == 'batch':
-		os.makedirs(job_output_dir, exist_ok=True)
 
 		if check_num_nodes.get_on_compute_node():
 			nums_nodes = [check_num_nodes.get_num_nodes()]
@@ -401,6 +408,9 @@ def main(argv):
 			else:
 				nums_nodes = req_nodes
 
+		print_time('Started at')
+		print_jobid()
+		os.makedirs(job_output_dir, exist_ok=True)
 		try:
 			for num_nodes in nums_nodes:
 				for cmd in all_commands(num_nodes, hybrid_params):
@@ -408,6 +418,7 @@ def main(argv):
 						run_single_command(cmd, command, keep_output=True, num_nodes=num_nodes)
 		except KeyboardInterrupt:
 			print('Interrupted')
+		print_time('Finished at')
 		return 1
 	elif command == 'submit':
 		os.makedirs(job_output_dir, exist_ok=True)
