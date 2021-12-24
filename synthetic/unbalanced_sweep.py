@@ -31,15 +31,22 @@ def make():
 	else:
 		return True
 	
+def vranks_to_costs(num_vranks):
+	assert num_vranks >= 4
+	costs = ['48.6', '16.0', '2.5', '2.0']
+	while len(costs) < num_vranks:
+		costs.append('2.0')
+	return ' '.join(costs)
 
 # Return the list of all commands to run
 def commands(num_nodes, hybrid_params):
+	if num_nodes == 1:
+		# No commands if running on single node
+		return
 	t = Template(command_template)
 	vranks = num_nodes * 2 # Start with fixed *2 oversubscription
-	if vranks == 4:
-		costs = '48.6 16.0 2.5 2.0'
-	else:
-		costs = '48.6 16.0 2.5 2.0 2.0 2.0 2.0 2.0'
+
+	costs = vranks_to_costs(vranks)
 
 	for noflush in [0,1]:
 		for degree in [1,2]:
@@ -224,7 +231,7 @@ def generate_plots(results, output_prefix_str):
 							curr2 = [average(times) for r,times in curr if int(r['iter']) == i and from_mem(r['params'][2]) == mem]
 							if len(curr2) > 0:
 								vals.append(max(curr2))
-						print(f'nf={noflush} a={appranks} p={policy} deg={degree} mem={mem} vals={vals}')
+						#print(f'nf={noflush} a={appranks} p={policy} deg={degree} mem={mem} vals={vals}')
 						if len(vals) > 0:
 							yy.append(average(vals))
 							xx.append(mem)
