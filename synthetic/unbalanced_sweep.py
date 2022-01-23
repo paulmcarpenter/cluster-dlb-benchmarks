@@ -49,7 +49,9 @@ def commands(num_nodes, hybrid_params):
 	costs = vranks_to_costs(vranks)
 
 	for noflush in [0,1]:
-		for degree in [1,2]:
+		for degree in [1,2,3,4,5,6]:
+			if degree > vranks:
+				continue
 			for policy in ('local', 'global'):
 				for drom in ['true']: # ['true','false'] if degree != 1
 					for lewi in ['true']: # ['true','false'] if degree != 1
@@ -98,7 +100,12 @@ def generate_plots(results, output_prefix_str):
 	policies = get_values(results, 'policy')
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
-	niters = 1 + max([int(x) for x in get_values(results, 'iter')])
+
+	all_iters = [int(x) for x in get_values(results, 'iter')]
+	if len(all_iters) == 0:
+		# No synthetic results collected
+		return
+	niters = 1 + max(all_iters)
 
 	# Generate time series plots
 	for appranks in apprankss:
