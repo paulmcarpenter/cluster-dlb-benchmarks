@@ -73,7 +73,7 @@ def print_jobid():
 job_script_template = """#! /bin/bash
 #SBATCH --nodes=$num_nodes
 #SBATCH --cpus-per-task=48
-#SBATCH --time=02:00:00
+#SBATCH --time=03:00:00
 #SBATCH --qos=$qos
 #SBATCH --output=$job_name.out
 #SBATCH --error=$job_name.err
