@@ -71,7 +71,7 @@ int main( int argc, char *argv[] )
 	}
 
 	// Get work per task for my rank
-	double mywork_ms = atof(argv[4+id]);
+	double mywork_ms = atof(argv[5+id]);
 	long long mywork_us = (int)(mywork_ms * 1000);
 
 	// Time per task as struct timespec
