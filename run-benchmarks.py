@@ -23,6 +23,7 @@ except ImportError:
 # Default parameters
 apps = ['synthetic', 'micropp']
 include_apps = {'synthetic' : True, 'micropp' : True}
+apps_desc = {'synthetic' : 'synthetic benchmarks', 'micropp' : 'micropp benchmarks'}
 verbose = True
 dry_run = False
 qos = 'bsc_cs'
@@ -42,8 +43,10 @@ def Usage():
 	print('./run-benchmarks.py <options> command')
 	print('where:')
 	print(' -h                      Show this help')
-	print(' --no-synthetic          Do not include synthetic benchmarks')
-	print(' --no-micropp            Do not include micropp benchmarks')
+	for a,d in apps_desc.items():
+		print(' --no-%-10s         Do not include %s' % (a,d))
+	for a,d in apps_desc.items():
+		print(' --%-10s            Include %s' % (a,d))
 	print(' --quiet                 Less verbose output')
 	print(' --dry-run               Show commands to run but do not run them')
 	print(' --qos queue             Choose queue')
@@ -146,10 +149,9 @@ def create_job_script(num_nodes):
 	args_list = []
 	if not verbose:
 		args_list.append('quiet')
-	if not include_apps['synthetic']:
-		args_list.append('--no-synthetic')
-	if not include_apps['micropp']:
-		args_list.append('--no-micropp')
+	for a,d in include_apps.items():
+		if d:
+			args_list.append('--' + a)
 	if dry_run:
 		args_list.append('--dry-run')
 	if extrae:
@@ -297,6 +299,8 @@ def main(argv):
 	global extrae
 	global output_prefix
 	global archived_subfolder
+	seen_app = None
+	seen_noapp = None
 
 	if not canImportNumpy:
 		if len(argv) >= 2 and argv[1] == '--recurse':
@@ -306,10 +310,11 @@ def main(argv):
 		return ret
 
 	try:
+		app_opts = [app for app in apps] + ['no-' + app for app in apps]
 		opts, args = getopt.getopt( argv[1:],
 									'hf', ['help', 'recurse', 'no-synthetic', 'no-micropp', 'quiet',
 											'dry-run', 'qos=', 'nodes=', 'degree=', 'extrae',
-											'local', 'global', 'output-prefix=', 'archived='])
+											'local', 'global', 'output-prefix=', 'archived='] + app_opts)
 
 	except getopt.error as msg:
 		print(msg)
@@ -323,10 +328,6 @@ def main(argv):
 			pass
 		elif o == '--quiet':
 			verbose = False
-		elif o == '--no-synthetic':
-			include_apps['synthetic'] = False
-		elif o == '--no-micropp':
-			include_apps['micropp'] = False
 		elif o == '--dry-run':
 			dry_run = True
 		elif o == '--qos':
@@ -346,7 +347,23 @@ def main(argv):
 		elif o == '--archived':
 			archived_subfolder = a
 		else:
-			assert False
+			assert o.startswith('--')
+			if o[2:] in apps:
+				if not seen_noapp is None:
+					print(f'Cannot combine --{o[2:]} with {seen_noapp}')
+					sys.exit(1)
+				if seen_app is None:
+					include_apps = dict([(app, False) for app in apps])
+				include_apps[o[2:]] = True
+				seen_app = o
+			elif o.startswith('--no-') and o[5:] in apps:
+				if not seen_app is None:
+					print(f'Cannot combine --{o[2:]} with {seen_app}')
+					sys.exit(1)
+				include_apps[o[5:]] = False
+				seen_noapp = o
+			else:
+				assert(False)
 	
 	if len(args) < 1:
 		return Usage()
