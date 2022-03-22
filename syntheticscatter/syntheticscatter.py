@@ -16,7 +16,7 @@ except ImportError:
 # Template to create the command to run the benchmark
 command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --local-period 120 --monitor 200',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
-				             'build/synthetic_unbalanced 10 480 $memsize $noflush $costs'])
+				             'build/syntheticscatter'])
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
@@ -25,59 +25,26 @@ def num_nodes():
 # Check whether the binary is missing
 def make():
 	# Normal make done with cmake
-	if not os.path.exists('build/synthetic_unbalanced'):
-		print('Binary build/synthetic_unbalanced for synthetic is missing')
+	if not os.path.exists('build/syntheticscatter'):
+		print('Binary build/syntheticscatter for syntheticscatter is missing')
 		return False
 	else:
 		return True
 	
-def vranks_to_costs(num_vranks):
-	assert num_vranks >= 4
-	costs = ['48.6', '16.0', '2.5', '2.0']
-	while len(costs) < num_vranks:
-		costs.append('2.0')
-	return ' '.join(costs)
-
 # Return the list of all commands to run
 def commands(num_nodes, hybrid_params):
 	if num_nodes == 1:
 		# No commands if running on single node
 		return
 	t = Template(command_template)
-	vranks = num_nodes * 2 # Start with fixed *2 oversubscription
+	vranks = num_nodes # Start with fixed *2 oversubscription
 
-	costs = vranks_to_costs(vranks)
-
-	for noflush in [0,1]:
-		for degree in [1,2,3,4,5,6]:
-			if degree > vranks:
-				continue
-			for policy in ('local', 'global'):
-				for drom in ['true']: # ['true','false'] if degree != 1
-					for lewi in ['true']: # ['true','false'] if degree != 1
-						for memsize in ['1', '1k', '10k', '100k', '1M', '10M', '20M', '40M']:
-							cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, memsize=memsize, noflush=noflush, costs=costs, hybrid_params=hybrid_params)
-							yield cmd
-
-# Convert memory size descriptor to number of bytes
-def from_mem(s):
-	assert len(s) > 0
-	suffixes = {'k': 1000, 'M' : 1000000, 'G' : 1000000000 }
-	if s[-1] in suffixes:
-		return int(s[:-1]) * suffixes[s[-1]]
-	else:
-		return int(s)
-
-# Convert number of bytes to memory size descriptor
-def format_mem(x):
-    num = 0
-    while x >= 1000 and (x % 1000) == 0:
-        num += 1
-        x /= 1000
-    if num == 0:
-        return '%d' % x
-    else:
-        return ('%d' % x) + 'kMGTPE'[num-1]
+	for degree in [1]: #,2]: #,3,4,5,6]:
+		for policy in ['local']: #('local', 'global'):
+			for drom in ['true']: # ['true','false'] if degree != 1
+				for lewi in ['true']: # ['true','false'] if degree != 1
+					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
+					yield cmd
 
 # Get all values of a field 
 def get_values(results, field):

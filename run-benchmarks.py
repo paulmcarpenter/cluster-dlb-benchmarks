@@ -9,6 +9,7 @@ import re
 import time
 import subprocess
 from synthetic import unbalanced_sweep
+from syntheticscatter import syntheticscatter
 from micropp import micropp
 import check_num_nodes
 from string import Template
@@ -21,9 +22,13 @@ except ImportError:
 	canImportNumpy = False
 
 # Default parameters
-apps = ['synthetic', 'micropp']
-include_apps = {'synthetic' : True, 'micropp' : True}
-apps_desc = {'synthetic' : 'synthetic benchmarks', 'micropp' : 'micropp benchmarks'}
+apps = ['synthetic', 'micropp', 'scatter']
+needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True}
+include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True}
+apps_desc = {'synthetic' : 'synthetic benchmarks',
+			'micropp' : 'micropp benchmarks',
+			'scatter' : 'synthetic scatter benchmark'}
+
 verbose = True
 dry_run = False
 qos = 'bsc_cs'
@@ -254,11 +259,18 @@ def make():
 		print('  cd ..')
 		return False
 	ok = True
-	if include_apps['synthetic']:
+	do_cmake = False
+	for a,d in include_apps.items():
+		if d:
+			if needs_cmake[a]:
+				do_cmake = True
+	if do_cmake:
 		# Benchmarks using cmake
 		ok = ok and cmake_make()
 	if ok and include_apps['synthetic']:
 		ok = ok and unbalanced_sweep.make()
+	if ok and include_apps['scatter']:
+		ok = ok and syntheticscatter.make()
 	if ok and include_apps['micropp']:
 		ok = ok and micropp.make()
 	return ok
@@ -266,6 +278,9 @@ def make():
 def all_commands(num_nodes, hybrid_params):
 	if include_apps['synthetic']:
 		for cmd in unbalanced_sweep.commands(num_nodes, hybrid_params):
+			yield cmd
+	if include_apps['scatter']:
+		for cmd in syntheticscatter.commands(num_nodes, hybrid_params):
 			yield cmd
 	if include_apps['micropp']:
 		for cmd in micropp.commands(num_nodes, hybrid_params):
@@ -275,6 +290,8 @@ def all_num_nodes():
 	num_nodes = set([])
 	if include_apps['synthetic']:
 		num_nodes.update(unbalanced_sweep.num_nodes())
+	if include_apps['syntheticscatter']:
+		num_nodes.update(syntheticscatter.num_nodes())
 	if include_apps['micropp']:
 		num_nodes.update(micropp.num_nodes())
 	return sorted(num_nodes)
@@ -284,6 +301,8 @@ def generate_plots(results):
 	output_prefix_str = output_prefix if not output_prefix is None else ''
 	if include_apps['synthetic']:
 		unbalanced_sweep.generate_plots(results, output_prefix_str)
+	if include_apps['scatter']:
+		syntheticscatter.generate_plots(results, output_prefix_str)
 	if include_apps['micropp']:
 		micropp.generate_plots(results, output_prefix_str)
 		
