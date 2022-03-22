@@ -4,6 +4,7 @@
 // #include <limits.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <sys/time.h>
 #include "mpi.h"
 
@@ -27,6 +28,8 @@ int main( int argc, char *argv[] )
 	struct timeval time_start, time_end;  // For timing each iteration
 	int niter = 10;
 	int ntasks = 480;
+	int runs_per_imbalance = 2;
+	float imbalance_step = 0.1;
 
 	// Initialize MPI:
 	// MPI_Init(&argc, &argv);	 // Cluster+DLB: do not call MPI_Init
@@ -42,111 +45,121 @@ int main( int argc, char *argv[] )
 
 	srand(100);
 
-	float target_imbalance = 2.0; // target value of max / average
 	double imbalance;
 
-	if (target_imbalance > num_appranks) {
-		printf("Imbalance of %f not possible on %d nodes (max imbalance is %d)\n",
-				target_imbalance, num_appranks, num_appranks);
-		return 0;
-	}
+	int max_i = (num_appranks-1) / imbalance_step;
+	for(int i=0; i<max_i; i++) {
+		double target_imbalance = 1.0 + i * imbalance_step;
 
-
-	// Rank 0 calculates work for each rank
-	if (id == 0) {
-		int worst_work = 500;
-		int worst_rank = rand() % num_appranks;
-		work_per_rank[worst_rank] = worst_work;
-		int rest_work = worst_work * (num_appranks / target_imbalance - 1);
-
-		// Uniformly random on remaining nodes (unnormalized)
-		long long total = 0;
-		int tmp[num_appranks];
-		for(int i=0; i < num_appranks; i++) {
-			if (i != worst_rank) {
-				tmp[i] = rand();
-				total += tmp[i];
-			}
+		if (target_imbalance > num_appranks) {
+			printf("Imbalance of %f not possible on %d nodes (max imbalance is %d)\n",
+					target_imbalance, num_appranks, num_appranks);
+			return 0;
 		}
+		printf("target_imbalance = %f\n", target_imbalance);
 
-		// Now normalize uniformly random on remaining nodes
-		for(int i=0; i < num_appranks; i++) {
-			if (i != worst_rank) {
-				work_per_rank[i] = (int)( (double)tmp[i] / total * rest_work );
+		for(int run=0; run < runs_per_imbalance; run++) {
+
+			// Rank 0 calculates work for each rank
+			if (id == 0) {
+				int worst_work = 500;
+				int worst_rank = rand() % num_appranks;
+				work_per_rank[worst_rank] = worst_work;
+				int rest_work = worst_work * (num_appranks / target_imbalance - 1);
+				printf("rest_work = %d\n", rest_work);
+
+				// Uniformly random on remaining nodes (unnormalized)
+				long long total = 0;
+				int tmp[num_appranks];
+				for(int i=0; i < num_appranks; i++) {
+					if (i != worst_rank) {
+						tmp[i] = rand();
+						total += tmp[i];
+					}
+				}
+
+				// Now normalize uniformly random on remaining nodes
+				for(int i=0; i < num_appranks; i++) {
+					if (i != worst_rank) {
+						work_per_rank[i] = (int)( (double)tmp[i] / total * rest_work );
+					}
+				}
+
+				long long tot = 0;
+				int max = 0;
+				printf("Work per rank: \n");
+				for(int i=0; i < num_appranks; i++) {
+					printf("%d ", work_per_rank[i]);
+					tot += work_per_rank[i];
+					if (work_per_rank[i] > max) {
+						max = work_per_rank[i];
+					}
+				}
+				printf("\n");
+				double avg = (double)tot/num_appranks;
+				// printf("Average: %.3f\n", avg);
+				// printf("Max: %d\n", max);
+				imbalance = max / avg;
+				printf("Imbalance: %.3f\n", imbalance);
 			}
-		}
 
-		long long tot = 0;
-		int max = 0;
-		for(int i=0; i < num_appranks; i++) {
-			printf("%d ", work_per_rank[i]);
-			tot += work_per_rank[i];
-			if (work_per_rank[i] > max) {
-				max = work_per_rank[i];
+			// Get work per task for my rank
+			int mywork_ms;
+			MPI_Scatter(work_per_rank, 1, MPI_INT, &mywork_ms, 1, MPI_INT, 0, comm);
+			MPI_Bcast(&imbalance, 1, MPI_DOUBLE, 0, comm);
+			printf("Rank %d gets %d (imb=%f)\n", id, mywork_ms, imbalance);
+
+			long long mywork_us = (int)(mywork_ms * 1000);
+
+			// Time per task as struct timespec
+			struct timespec ts;
+			ts.tv_sec = mywork_us / 1000000;
+			ts.tv_nsec = (mywork_us % 1000000) * 1000;
+
+			// Allocate memory for all tasks
+			int bytes_per_task = 1;
+			char *mem = (char *)nanos6_lmalloc(ntasks * bytes_per_task);
+			for (int i=0;i<ntasks;i++) {
+				mem[i*bytes_per_task] = i+10;
 			}
-		}
-		double avg = (double)tot/num_appranks;
-		printf("\nAverage: %.3f\n", avg);
-		printf("Max: %d\n", max);
-		imbalance = max / avg;
-		printf("Imbalance: %.3f\n", imbalance);
-	}
 
-	// Get work per task for my rank
-	int mywork_ms;
-	MPI_Scatter(work_per_rank, 1, MPI_INT, &mywork_ms, 1, MPI_INT, 0, comm);
-	MPI_Bcast(&imbalance, 1, MPI_DOUBLE, 0, comm);
-	printf("Rank %d gets %d (imb=%f)\n", id, mywork_ms, imbalance);
-
-	long long mywork_us = (int)(mywork_ms * 1000);
-
-	// Time per task as struct timespec
-	struct timespec ts;
-	ts.tv_sec = mywork_us / 1000000;
-	ts.tv_nsec = (mywork_us % 1000000) * 1000;
-
-	// Allocate memory for all tasks
-	int bytes_per_task = 1;
-	char *mem = (char *)nanos6_lmalloc(ntasks * bytes_per_task);
-	for (int i=0;i<ntasks;i++) {
-		mem[i*bytes_per_task] = i+10;
-	}
-
-	// Run iterations
-	MPI_Barrier(comm);
-	for(int iter=0; iter < niter; iter++)
-	{
-		gettimeofday(&time_start, NULL);
-
-		// Create independent tasks
-		for(int task=0; task<ntasks; task++)
-		{
-			char *c = &mem[task * bytes_per_task];
-			#pragma oss task inout(c[0;bytes_per_task]) 
+			// Run iterations
+			MPI_Barrier(comm);
+			for(int iter=0; iter < niter; iter++)
 			{
-				// Very simple correctness check on the first byte
-				assert(c[0] == (char)(task + iter + 10));
-				c[0] ++;
-				wait(ts);
+				gettimeofday(&time_start, NULL);
+
+				// Create independent tasks
+				for(int task=0; task<ntasks; task++)
+				{
+					char *c = &mem[task * bytes_per_task];
+					#pragma oss task inout(c[0;bytes_per_task]) 
+					{
+						// Very simple correctness check on the first byte
+						assert(c[0] == (char)(task + iter + 10));
+						c[0] ++;
+						wait(ts);
+					}
+				}
+
+				#pragma oss taskwait noflush
+
+				// Barrier
+				MPI_Barrier(comm);
+
+				// Print execution time
+				if (id == 0)
+				{
+					int p, t;
+					gettimeofday(&time_end, NULL);
+					double secs = (time_end.tv_sec - time_start.tv_sec) + (time_end.tv_usec - time_start.tv_usec) / 1000000.0;
+					printf("# %s appranks=%d deg=%d ", argv[0], num_appranks, nanos6_get_num_cluster_iranks());
+					for (int i=1; i<argc; i++) {
+						printf("%s ", argv[i]);
+					}
+					printf(": iter=%d imb=%.3f time=%3.2f sec\n", iter, imbalance, secs);
+				}
 			}
-		}
-
-		#pragma oss taskwait noflush
-
-		// Barrier
-		MPI_Barrier(comm);
-
-		// Print execution time
-		if (id == 0)
-		{
-			int p, t;
-			gettimeofday(&time_end, NULL);
-			double secs = (time_end.tv_sec - time_start.tv_sec) + (time_end.tv_usec - time_start.tv_usec) / 1000000.0;
-			printf("# %s appranks=%d deg=%d ", argv[0], num_appranks, nanos6_get_num_cluster_iranks());
-			for (int i=1; i<argc; i++) {
-				printf("%s ", argv[i]);
-			}
-			printf(": iter=%d imb=%.3f time=%3.2f sec\n", iter, imbalance, secs);
 		}
 	}
 
