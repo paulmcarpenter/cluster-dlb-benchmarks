@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <assert.h>
 // #include <limits.h>
 #include <string.h>
@@ -17,6 +18,71 @@ void wait(const struct timespec ts)
 	while (retval == -1) {
 		struct timespec ts2 = rem;
 		retval = nanosleep(&ts2, &rem);
+	}
+}
+
+int cmpfunc(const void *a, const void *b)
+{
+	return ( *(int*)a - *(int *)b);
+}
+
+int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank)
+{
+	int worst_work = 500;
+	if (target_imbalance > num_appranks) {
+		printf("Imbalance of %f not possible on %d nodes (max imbalance is %d)\n",
+				target_imbalance, num_appranks, num_appranks);
+		return 0;
+	}
+	printf("target_imbalance = %f\n", target_imbalance);
+
+	// Set up initial allocation with worst_work on one node and rest at zero
+	int worst_rank = rand() % num_appranks;
+	memset(work_per_rank, 0, num_appranks * sizeof(int));
+	work_per_rank[worst_rank] = worst_work;
+	int num_live_appranks = num_appranks-1;
+
+	// How much work is left to allocate to get the right average work
+	int rest_work = worst_work * (num_appranks / target_imbalance - 1);
+	printf("rest_work = %d\n", rest_work);
+
+	while (rest_work > 0) {
+		// The remaining m=n-1 entries should be "uniform" but must sum to rest_work.
+		// A simple way is to choose m-1 places on the interval [0,rest_work], then sort
+		// and use the sizes of these pieces. They must also be no larger than worst_work,
+		// so we may need to drop any excess and try again.
+		int m = num_live_appranks;
+		int tmp[m+1];
+		tmp[0] = 0;
+		for(int i=1; i < m; i++) {
+			tmp[i] = rand() % rest_work;
+			printf("Y_%d = %d\n", i, tmp[i]);
+		}
+		tmp[m] = rest_work;
+		qsort(tmp, m+1, sizeof(int), cmpfunc);
+
+		for(int i=0; i < m+1; i++) {
+			printf("Now Y_%d = %d\n", i, tmp[i]);
+		}
+
+		int i = 1;
+		for(int j=0; j<num_appranks; j++) {
+			if (work_per_rank[j] < worst_work) {
+				int extra_work = tmp[i] - tmp[i-1];
+				int slack = worst_work - work_per_rank[j];
+				printf("Proposed extra work for %d is %d\n", j, extra_work);
+				if (extra_work >= slack) {
+					extra_work = slack;
+					num_live_appranks --;
+				}
+				work_per_rank[j] += extra_work;
+				rest_work -= extra_work;
+				printf("Actual extra work for %d is %d\n", j, extra_work);
+				i++;
+			}
+			printf("work_per_rank[%d] = %d\n", j, work_per_rank[j]);
+		}
+		printf("rest_work = %d\n", rest_work);
 	}
 }
 
@@ -51,39 +117,12 @@ int main( int argc, char *argv[] )
 	for(int i=0; i<max_i; i++) {
 		double target_imbalance = 1.0 + i * imbalance_step;
 
-		if (target_imbalance > num_appranks) {
-			printf("Imbalance of %f not possible on %d nodes (max imbalance is %d)\n",
-					target_imbalance, num_appranks, num_appranks);
-			return 0;
-		}
-		printf("target_imbalance = %f\n", target_imbalance);
 
 		for(int run=0; run < runs_per_imbalance; run++) {
 
 			// Rank 0 calculates work for each rank
 			if (id == 0) {
-				int worst_work = 500;
-				int worst_rank = rand() % num_appranks;
-				work_per_rank[worst_rank] = worst_work;
-				int rest_work = worst_work * (num_appranks / target_imbalance - 1);
-				printf("rest_work = %d\n", rest_work);
-
-				// Uniformly random on remaining nodes (unnormalized)
-				long long total = 0;
-				int tmp[num_appranks];
-				for(int i=0; i < num_appranks; i++) {
-					if (i != worst_rank) {
-						tmp[i] = rand();
-						total += tmp[i];
-					}
-				}
-
-				// Now normalize uniformly random on remaining nodes
-				for(int i=0; i < num_appranks; i++) {
-					if (i != worst_rank) {
-						work_per_rank[i] = (int)( (double)tmp[i] / total * rest_work );
-					}
-				}
+				calculate_work(num_appranks, target_imbalance, work_per_rank);
 
 				long long tot = 0;
 				int max = 0;

@@ -55,7 +55,7 @@ find_package(Threads REQUIRED)
 set(default_build_type "Debug")
 
 # OmpSs-2
-add_compile_options(-O0 -ggdb -g --ompss-2 -k)
+add_compile_options(-O0 -ggdb -g --ompss-2 -k -lm)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --ompss-2")
 
 # MPI
