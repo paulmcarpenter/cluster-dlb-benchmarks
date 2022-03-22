@@ -290,7 +290,7 @@ def all_num_nodes():
 	num_nodes = set([])
 	if include_apps['synthetic']:
 		num_nodes.update(unbalanced_sweep.num_nodes())
-	if include_apps['syntheticscatter']:
+	if include_apps['scatter']:
 		num_nodes.update(syntheticscatter.num_nodes())
 	if include_apps['micropp']:
 		num_nodes.update(micropp.num_nodes())
