@@ -13,6 +13,18 @@ try:
 except ImportError:
 	pass
 
+
+def split_by_times(xx, yy):
+	out_xx = []
+	out_yy = []
+	n = len(xx)
+	assert n == len(yy)
+	for j in range(0,n):
+		for y in yy[j]:
+			out_xx.append(xx[j])
+			out_yy.append(y)
+	return out_xx, out_yy
+
 # Template to create the command to run the benchmark
 command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --local-period 120 --monitor 200',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
@@ -62,11 +74,15 @@ noflush_str = ['flush', 'noflush']
 def generate_plots(results, output_prefix_str):
 
 	# Keep only results for correct executable
-	results = [ (r,times) for (r,times) in results if r['executable'] == 'build/synthetic_unbalanced']
+	results = [ (r,times) for (r,times) in results if r['executable'] == 'build/syntheticscatter']
+	# print(results)
 
 	policies = get_values(results, 'policy')
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
+	print(f'policies {policies}')
+	print(f'degrees {degrees}')
+	print(f'apprankss {apprankss}')
 
 	all_iters = [int(x) for x in get_values(results, 'iter')]
 	if len(all_iters) == 0:
@@ -74,149 +90,36 @@ def generate_plots(results, output_prefix_str):
 		return
 	niters = 1 + max(all_iters)
 
-	# Generate time series plots
+	# Generate plot as function of memory
 	for appranks in apprankss:
 		for policy in policies:
-			for degree in degrees:
-				for noflush in [0,1]:
-					for lewi in ['true', 'false']:
-						for drom in ['true', 'false']: 
-							if lewi == 'true':
-								if drom == 'true':
-									dlb_str = 'dlb'
-								else:
-									dlb_str = 'lewi'
-							else:
-								if drom == 'true':	
-									dlb_str = 'drom'
-								else:
-									dlb_str = 'nodlb'
-							title = 'unbalanced-sweep-appranks%d-%s-deg%d-%s-%s.pdf' % (appranks, policy, degree, noflush_str[noflush], dlb_str)
+		
+			with PdfPages('output/%ssynthetic-scatter-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
 
-							res = [ (r,times) for (r,times) in results \
-										if r['appranks'] == appranks \
-										   and r['degree'] == degree \
-										   and int(r['params'][3]) == noflush \
-										   and r['lewi'] == lewi \
-										   and r['drom'] == drom \
-										   and r['policy'] == policy]
-
-							# Index in the output for the time value
-							idx_iter = 5 + appranks
-							for r,times in res:
-								assert r['params'][idx_iter-1] == ':'
-								assert r['params'][idx_iter][0:5] == 'iter='
-								assert len(r['params']) == idx_iter+1
-
-							mems = sorted(set([from_mem(r['params'][2]) for r,times in res]))
-							if len(mems) > 0:
-								iters = sorted(set([int(r['params'][idx_iter][5:]) for r,times in res]))
-															
-								with PdfPages('output/%s%s' % (output_prefix_str,title)) as pdf:
-									maxy = 0
-									for mem in mems:
-										xx = []
-										yy = []
-										for iter_num in iters:
-											t = [times for r,times in res \
-												if from_mem(r['params'][2]) == mem \
-													and int(r['params'][idx_iter][5:]) == iter_num]
-											if len(t) == 1:
-												xx.append(iter_num)
-												yy.append(average(t[0]))
-											else:
-												assert len(t) == 0
-										plt.plot(xx, yy, label = format_mem(mem))
-										maxy = max(maxy,max(yy))
-									plt.title('%s degree %d: Execution time per iteration' % (policy, degree))
-									plt.xlabel('Iteration number')
-									plt.ylabel('Execution time (s)')
-									plt.ylim(0,maxy)
-									plt.legend()
-									pdf.savefig()
-									plt.close()
-
-	# Generate barcharts
-	mems = sorted(set([from_mem(r['params'][2]) for r,times in results]))
-	for mem in mems:
-		with PdfPages('output/%sunbalanced-%s-barcharts.pdf' % (output_prefix_str, format_mem(mem))) as pdf:
-			lewi = 'true'
-			drom = 'true'
-			groups = [ (nf,a,p) for nf in [0,1] for a in [4,8] for p in ['local','global']]
-			for k,degree in enumerate(degrees):
-				avgs = []
-				stdevs = []
-				for (noflush, appranks, policy) in groups:
-					curr = [ (r,times) for (r,times) in results \
-								if r['appranks'] == appranks \
-								   and r['degree'] == degree \
-								   and int(r['params'][3]) == noflush \
-								   and r['lewi'] == lewi \
-								   and r['drom'] == drom \
-								   and r['policy'] == policy \
-								   and from_mem(r['params'][2]) == mem \
-								   and int(r['iter']) >= niters * 0.67 ]
-					#print(f'mem={mem} curr={curr}')
-					vals = []
-					for i in range(0,niters):
-						curr2 = [average(times) for r,times in curr if int(r['iter']) == i]
-						if len(curr2) > 0:
-							vals.append(average(curr2))
-
-					if len(vals) > 0:
-						avg = average(vals)
-						stdev = np.std(vals)
-					else:
-						avg = 0
-						stdev = 0
-					avgs.append(avg)
-					stdevs.append(stdev)
-				ind = np.arange(len(avgs))
-				width = 0.2
-				plt.bar(ind + k * width, avgs, width, yerr=stdev, label='degree %d' % degree)
-			plt.xticks(ind + 2*width, ['%s %d %s' % (noflush_str[nf],a,p) for (nf,a,p) in groups], rotation=20, wrap=True)
-			plt.legend(loc='best')
-			pdf.savefig()
-			plt.close()
-
-	# Generate plot as function of memory
-	mems = sorted(set([from_mem(r['params'][2]) for r,times in results]))
-	for appranks in [4,8]:
-		groups = [ (nf,p) for nf in [0,1] for p in ['local','global']]
-		with PdfPages('output/%sunbalanced-sweep-appranks-%d.pdf' % (output_prefix_str,appranks)) as pdf:
-			for (noflush, policy) in groups:
 				for degree in degrees:
 					lewi = 'true'
 					drom = 'true'
 					curr = [ (r,times) for (r,times) in results \
 								if r['appranks'] == appranks \
 								   and r['degree'] == degree \
-								   and int(r['params'][3]) == noflush \
 								   and r['lewi'] == lewi \
 								   and r['drom'] == drom \
 								   and r['policy'] == policy \
-								   and int(r['iter']) >= niters * 0.67 ]
-					#print(f'mem={mem} curr={curr}')
-					xx = [] # memory
-					yy = [] # time
-					for mem in mems:
-						vals = [] # All iterations for this amount of memory
-						for i in range(0,niters):
-							curr2 = [average(times) for r,times in curr if int(r['iter']) == i and from_mem(r['params'][2]) == mem]
-							if len(curr2) > 0:
-								vals.append(max(curr2))
-						#print(f'nf={noflush} a={appranks} p={policy} deg={degree} mem={mem} vals={vals}')
-						if len(vals) > 0:
-							yy.append(average(vals))
-							xx.append(mem)
-					plt.plot(xx, yy, label = '%s appranks=%d %s deg=%d' % (noflush_str[noflush], appranks, policy, degree))
+								   and int(r['iter']) == niters-1]
+					xx = [r['imb'] for (r,times) in curr] # x is imbalance
+					yy = [times for (r,times) in curr]
+					xx,yy = split_by_times(xx, yy)
+					print('xx =', xx)
+					print('yy =', yy)
+					plt.scatter(xx, yy, label = f'degree {degree}')
 
-			plt.xlabel('Memory footprint')
-			plt.ylabel('Execution time (s)')
-			plt.ylim(0,1)
-			plt.legend(loc='best')
-			pdf.savefig()
-			plt.close()
+				plt.title(f'Appranks {appranks} policy {policy}')
+				plt.xlabel('Imbalance')
+				plt.ylabel('Execution time (s)')
+				#plt.ylim(0,1)
+				plt.legend(loc='best')
+				pdf.savefig()
+				plt.close()
 
 
 
