@@ -8,9 +8,37 @@
 #include <math.h>
 #include <sys/time.h>
 
+// Comparison function for qsort of ints
 int cmpfunc(const void *a, const void *b)
 {
 	return ( *(int*)a - *(int *)b);
+}
+
+// Generate array of m numbers, each of value from 0 to max, with given total
+int gen(int m, int total, int max, int *pieces) {
+
+	int fail;
+	do {
+		fail = 0;
+		// A simple way is to choose m-1 random places on the interval [0,total],
+		// then sort these places and use the sizes of these pieces between them.
+		int tmp[m+1];
+		tmp[0] = 0;
+		for(int i=1; i < m; i++) {
+			tmp[i] = (total>0) ? (rand() % total) : 0;
+		}
+		tmp[m] = total;
+		qsort(tmp, m+1, sizeof(int), cmpfunc);
+
+		// Check whether any piece exceeds max; if so, need to try again
+		for(int i=0; i<m; i++) {
+			pieces[i] = tmp[i+1] - tmp[i];
+			if (pieces[i] > max) {
+				fail = 1;
+				break;
+			}
+		}
+	} while (fail);
 }
 
 int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank)
@@ -23,71 +51,37 @@ int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank
 	}
 	printf("target_imbalance = %f\n", target_imbalance);
 
-	// Set up initial allocation with worst_work on one node and rest at zero
+	// Which rank will get the worst amount of work?
 	int worst_rank = rand() % num_appranks;
-	memset(work_per_rank, 0, num_appranks * sizeof(int));
-	work_per_rank[worst_rank] = worst_work;
-	int num_live_appranks = num_appranks-1;
 
 	// How much work is left to allocate to get the right average work
 	int rest_work = worst_work * (num_appranks / target_imbalance - 1);
-	// printf("rest_work = %d\n", rest_work);
+	int slack_work = worst_work * (num_appranks-1) - rest_work;
 
-	while (rest_work > 0) {
-		// The remaining m=n-1 entries should be "uniform" but must sum to rest_work.
-		// A simple way is to choose m-1 places on the interval [0,rest_work], then sort
-		// and use the sizes of these pieces. They must also be no larger than worst_work,
-		// so we may need to drop any excess and try again.
-		int m = num_live_appranks;
-		int tmp[m+1];
-		tmp[0] = 0;
-		for(int i=1; i < m; i++) {
-			tmp[i] = rand() % rest_work;
-			printf("Y_%d = %d\n", i, tmp[i]);
+	int tmp[num_appranks-1];
+	if (rest_work < slack_work) {
+		// Distribute rest_work across the remaining appranks
+		gen(num_appranks-1, rest_work, worst_work, tmp);
+	} else {
+		// Better to start with full allocation to all nodes, then reduce it
+		// by distributing the slack. Since the total slack is smaller than
+		// rest_work, it is less likely that any particular value will exceed
+		// worst_work, and require re-sampling.
+		gen(num_appranks-1, slack_work, worst_work, tmp);
+		for(int i=0; i<num_appranks-1; i++) {
+			tmp[i] = worst_work - tmp[i];
 		}
-		tmp[m] = rest_work;
-		qsort(tmp, m+1, sizeof(int), cmpfunc);
+	}
 
-		// for(int i=0; i < m+1; i++) {
-		// 	printf("Now Y_%d = %d\n", i, tmp[i]);
-		// }
-	
-		double multiplier = 1.0;
-		// Check whether any exceed worst_work
-		int i = 1;
-		for(int j=0; j<num_appranks; j++) {
-			if (work_per_rank[j] < worst_work) {
-				int extra_work = tmp[i] - tmp[i-1];
-				int slack = worst_work - work_per_rank[j];
-				// printf("Proposed extra work for %d is %d\n", j, extra_work);
-				if (extra_work >= slack) {
-					double my_multiplier = (double)slack / extra_work;
-					if (my_multiplier < multiplier) {
-						multiplier = my_multiplier;
-					}
-				}
-				i++;
-			}
+	// Set up work_per_rank array
+	int i = 0;
+	for(int j=0; j<num_appranks; j++) {
+		if (j != worst_rank) {
+			work_per_rank[j] = tmp[i];
+			i++;
+		} else {
+			work_per_rank[j] = worst_work;
 		}
-		// printf("multiplier = %f\n", multiplier);
-
-		i = 1;
-		for(int j=0; j<num_appranks; j++) {
-			if (work_per_rank[j] < worst_work) {
-				int extra_work = multiplier * (tmp[i] - tmp[i-1]);
-				// printf("Proposed extra work for %d is %d\n", j, extra_work);
-				work_per_rank[j] += extra_work;
-				assert (work_per_rank[j] <= worst_work);
-				if (work_per_rank[j] == worst_work) {
-					num_live_appranks --;
-				}
-				rest_work -= extra_work;
-				// printf("Actual extra work for %d is %d\n", j, extra_work);
-				i++;
-			}
-			// printf("work_per_rank[%d] = %d\n", j, work_per_rank[j]);
-		}
-		printf("rest_work = %d\n", rest_work);
 	}
 }
 
@@ -120,8 +114,8 @@ int main( int argc, char *argv[] )
 		// printf("Max: %d\n", max);
 		double imbalance = max / avg;
 		printf("Imbalance: %.3f\n", imbalance);
-		assert (imbalance >= target_imbalance - 0.1);
-		assert (imbalance <= target_imbalance + 0.1);
+		assert (imbalance >= target_imbalance - 0.05);
+		assert (imbalance <= target_imbalance + 0.05);
 	}
 
 }
