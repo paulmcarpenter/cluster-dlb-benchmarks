@@ -42,10 +42,12 @@ int gen(int m, int total, int max, int *pieces) {
 	} while (fail);
 }
 
+int avg_time_per_task = 50000; // in ms
+
 // Calculate work on each rank with a given target imbalance
 int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank)
 {
-	int worst_work = 500;
+	int worst_work = avg_time_per_task * target_imbalance;
 	if (target_imbalance > num_appranks) {
 		printf("Imbalance of %f not possible on %d nodes (max imbalance is %d)\n",
 				target_imbalance, num_appranks, num_appranks);
@@ -107,9 +109,9 @@ int main( int argc, char *argv[] )
 	int task;							  // Counters
 	struct timeval time_start, time_end;  // For timing each iteration
 	int niter = 10;
-	int ntasks = 480;
-	int runs_per_imbalance = 2;
-	float imbalance_step = 0.1;
+	int ntasks_per_core = 100;
+	int ntasks = 48 * ntasks_per_core;
+	int runs_per_imbalance = 1;
 
 	// Initialize MPI:
 	// MPI_Init(&argc, &argv);	 // Cluster+DLB: do not call MPI_Init
@@ -121,7 +123,15 @@ int main( int argc, char *argv[] )
 	// Get the total number of appranks
 	MPI_Comm_size(comm, &num_appranks);
 
-	int work_per_rank[num_appranks]; // in ms
+	int estimated_time_secs = 30 * 60;  // for the baseline
+	double avg_imbalance = (1.0 + num_appranks) / 2.0;
+	double est_time_per_run = niter * ntasks_per_core * avg_time_per_task * avg_imbalance/ 1000000.0;
+	int nruns = estimated_time_secs / est_time_per_run;
+	printf("est_time_per_run = %.3f\n", est_time_per_run);
+	printf("nruns: %d\n", nruns);
+	float imbalance_step = 1.0 * (num_appranks - 1.0) / nruns;
+
+	int work_per_rank[num_appranks]; // in us
 
 	srand(100);
 
@@ -140,9 +150,9 @@ int main( int argc, char *argv[] )
 
 				long long tot = 0;
 				int max = 0;
-				printf("Work per rank: \n");
+				printf("Work per rank (ms): \n");
 				for(int i=0; i < num_appranks; i++) {
-					printf("%d ", work_per_rank[i]);
+					printf("%.3f ", work_per_rank[i] / 1000);
 					tot += work_per_rank[i];
 					if (work_per_rank[i] > max) {
 						max = work_per_rank[i];
@@ -157,12 +167,10 @@ int main( int argc, char *argv[] )
 			}
 
 			// Get work per task for my rank
-			int mywork_ms;
-			MPI_Scatter(work_per_rank, 1, MPI_INT, &mywork_ms, 1, MPI_INT, 0, comm);
+			int mywork_us;
+			MPI_Scatter(work_per_rank, 1, MPI_INT, &mywork_us, 1, MPI_INT, 0, comm);
 			MPI_Bcast(&imbalance, 1, MPI_DOUBLE, 0, comm);
-			printf("Rank %d gets %d (imb=%f)\n", id, mywork_ms, imbalance);
-
-			long long mywork_us = (int)(mywork_ms * 1000);
+			printf("Rank %d gets %d (imb=%f)\n", id, mywork_us, imbalance);
 
 			// Time per task as struct timespec
 			struct timespec ts;
