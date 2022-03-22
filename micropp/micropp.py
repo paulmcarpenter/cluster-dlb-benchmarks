@@ -44,7 +44,7 @@ def make():
 # Return the list of all commands to run
 def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
-	vranks = num_nodes * 2 # Start with fixed *2 oversubscription
+	vranks = num_nodes #* 2 # Start with fixed *2 oversubscription
 
 	for degree in list(range(1, num_nodes+1)):
 		for policy in ('local', 'global'):

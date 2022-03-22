@@ -21,8 +21,8 @@ except ImportError:
 	canImportNumpy = False
 
 # Default parameters
-include_synthetic = True
-include_micropp = True
+apps = ['synthetic', 'micropp']
+include_apps = {'synthetic' : True, 'micropp' : True}
 verbose = True
 dry_run = False
 qos = 'bsc_cs'
@@ -146,9 +146,9 @@ def create_job_script(num_nodes):
 	args_list = []
 	if not verbose:
 		args_list.append('quiet')
-	if not include_synthetic:
+	if not include_apps['synthetic']:
 		args_list.append('--no-synthetic')
-	if not include_micropp:
+	if not include_apps['micropp']:
 		args_list.append('--no-micropp')
 	if dry_run:
 		args_list.append('--dry-run')
@@ -252,43 +252,42 @@ def make():
 		print('  cd ..')
 		return False
 	ok = True
-	if include_synthetic:
+	if include_apps['synthetic']:
 		# Benchmarks using cmake
 		ok = ok and cmake_make()
-	if ok and include_synthetic:
+	if ok and include_apps['synthetic']:
 		ok = ok and unbalanced_sweep.make()
-	if ok and include_micropp:
+	if ok and include_apps['micropp']:
 		ok = ok and micropp.make()
 	return ok
 
 def all_commands(num_nodes, hybrid_params):
-	if include_synthetic:
+	if include_apps['synthetic']:
 		for cmd in unbalanced_sweep.commands(num_nodes, hybrid_params):
 			yield cmd
-	if include_micropp:
+	if include_apps['micropp']:
 		for cmd in micropp.commands(num_nodes, hybrid_params):
 			yield cmd
 
 def all_num_nodes():
 	num_nodes = set([])
-	if include_synthetic:
+	if include_apps['synthetic']:
 		num_nodes.update(unbalanced_sweep.num_nodes())
-	if include_micropp:
+	if include_apps['micropp']:
 		num_nodes.update(micropp.num_nodes())
 	return sorted(num_nodes)
 
 def generate_plots(results):
 	global output_prefix
 	output_prefix_str = output_prefix if not output_prefix is None else ''
-	if include_synthetic:
+	if include_apps['synthetic']:
 		unbalanced_sweep.generate_plots(results, output_prefix_str)
-	if include_micropp:
+	if include_apps['micropp']:
 		micropp.generate_plots(results, output_prefix_str)
 		
 
 def main(argv):
-	global include_synthetic
-	global include_micropp
+	global include_apps
 	global verbose
 	global dry_run
 	global qos
@@ -325,9 +324,9 @@ def main(argv):
 		elif o == '--quiet':
 			verbose = False
 		elif o == '--no-synthetic':
-			include_synthetic = False
+			include_apps['synthetic'] = False
 		elif o == '--no-micropp':
-			include_micropp = False
+			include_apps['micropp'] = False
 		elif o == '--dry-run':
 			dry_run = True
 		elif o == '--qos':
