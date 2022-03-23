@@ -100,10 +100,11 @@ def generate_plots(results, output_prefix_str):
 		
 			with PdfPages('output/%ssynthetic-scatter-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
 
+				# Draw perfect balance line
 				min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 				max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 				print(min_imb, max_imb, baseline_time)
-				plt.plot([min_imb, max_imb], [baseline_time, baseline_time]) #, marker='o')
+				plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
 
 				for degree in degrees:
 					lewi = 'true'
@@ -123,7 +124,7 @@ def generate_plots(results, output_prefix_str):
 
 						print('xx =', xx)
 						print('yy =', yy)
-						plt.scatter(xx, yy, label = f'degree {degree}')
+						plt.scatter(xx, yy, label = f'degree {degree}', zorder = 10)
 
 				plt.title(f'Appranks {appranks} policy {policy}')
 				plt.xlabel('Imbalance')
