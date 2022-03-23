@@ -91,12 +91,19 @@ def generate_plots(results, output_prefix_str):
 		return
 	niters = 1 + max(all_iters)
 
+	baseline_time = 5
+
 	# Generate plot as function of memory
 	maxyy = 1
 	for appranks in apprankss:
 		for policy in policies:
 		
 			with PdfPages('output/%ssynthetic-scatter-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
+
+				min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
+				max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
+				print(min_imb, max_imb, baseline_time)
+				plt.plot([min_imb, max_imb], [baseline_time, baseline_time]) #, marker='o')
 
 				for degree in degrees:
 					lewi = 'true'
@@ -108,7 +115,7 @@ def generate_plots(results, output_prefix_str):
 								   and r['drom'] == drom \
 								   and r['policy'] == policy \
 								   and int(r['iter']) == niters-1]
-					xx = [r['imb'] for (r,times) in curr] # x is imbalance
+					xx = [float(r['imb']) for (r,times) in curr] # x is imbalance
 					yy = [times for (r,times) in curr]
 					xx,yy = split_by_times(xx, yy)
 					if len(xx) > 0:
@@ -121,6 +128,7 @@ def generate_plots(results, output_prefix_str):
 				plt.title(f'Appranks {appranks} policy {policy}')
 				plt.xlabel('Imbalance')
 				plt.ylabel('Execution time (s)')
+				plt.xlim(min_imb, max_imb)
 				plt.ylim(0,maxyy)
 				plt.legend(loc='best')
 				pdf.savefig()
