@@ -26,7 +26,7 @@ def split_by_times(xx, yy):
 	return out_xx, out_yy
 
 # Template to create the command to run the benchmark
-command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --local-period 120 --monitor 200',
+command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --local-period 10 --monitor 200',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/syntheticscatter'])
 
@@ -51,7 +51,8 @@ def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
 	vranks = num_nodes # Start with fixed *2 oversubscription
 
-	for degree in [1,2]: #,3,4,5,6]:
+	max_degree = min(4, num_nodes)
+	for degree in range(1, max_degree+1):
 		for policy in ['local']: #('local', 'global'):
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
