@@ -9,6 +9,12 @@
 #include <sys/time.h>
 #include "mpi.h"
 
+// Parameters
+int niter = 10;
+#define NTASKS_PER_CORE 100
+int ntasks_per_core = NTASKS_PER_CORE;
+int ntasks = 48 * NTASKS_PER_CORE;
+
 // Comparison function for qsort of ints
 int cmpfunc(const void *a, const void *b)
 {
@@ -101,16 +107,97 @@ void wait(const struct timespec ts)
 	}
 }
 
+void run_with_imbalance(const char *appname, int id, int num_appranks, double target_imbalance, int runs_per_imbalance)
+{
+	int task;							  // Counters
+	int comm = nanos6_app_communicator();  // Cluster+DLB: use application communicator
+	struct timeval time_start, time_end;  // For timing each iteration
+	int work_per_rank[num_appranks]; // in us
+	double imbalance = 0.0;
+	for(int run=0; run < runs_per_imbalance; run++) {
+
+		// Rank 0 calculates work for each rank
+		if (id == 0) {
+			calculate_work(num_appranks, target_imbalance, work_per_rank);
+
+			long long tot = 0;
+			int max = 0;
+			printf("Work per rank (ms): \n");
+			for(int i=0; i < num_appranks; i++) {
+				printf("%.3f ", work_per_rank[i] / 1000);
+				tot += work_per_rank[i];
+				if (work_per_rank[i] > max) {
+					max = work_per_rank[i];
+				}
+			}
+			printf("\n");
+			double avg = (double)tot/num_appranks;
+			// printf("Average: %.3f\n", avg);
+			// printf("Max: %d\n", max);
+			imbalance = max / avg;
+			printf("Imbalance: %.3f\n", imbalance);
+		}
+
+		// Get work per task for my rank
+		int mywork_us;
+		MPI_Scatter(work_per_rank, 1, MPI_INT, &mywork_us, 1, MPI_INT, 0, comm);
+		MPI_Bcast(&imbalance, 1, MPI_DOUBLE, 0, comm);
+		printf("Rank %d gets %d (imb=%f)\n", id, mywork_us, imbalance);
+
+		// Time per task as struct timespec
+		struct timespec ts;
+		ts.tv_sec = mywork_us / 1000000;
+		ts.tv_nsec = (mywork_us % 1000000) * 1000;
+
+		// Allocate memory for all tasks
+		int bytes_per_task = 1;
+		char *mem = (char *)nanos6_lmalloc(ntasks * bytes_per_task);
+		for (int i=0;i<ntasks;i++) {
+			mem[i*bytes_per_task] = i+10;
+		}
+
+		// Run iterations
+		MPI_Barrier(comm);
+		for(int iter=0; iter < niter; iter++)
+		{
+			gettimeofday(&time_start, NULL);
+
+			// Create independent tasks
+			for(int task=0; task<ntasks; task++)
+			{
+				char *c = &mem[task * bytes_per_task];
+				#pragma oss task inout(c[0;bytes_per_task]) 
+				{
+					// Very simple correctness check on the first byte
+					assert(c[0] == (char)(task + iter + 10));
+					c[0] ++;
+					wait(ts);
+				}
+			}
+
+			#pragma oss taskwait noflush
+
+			// Barrier
+			MPI_Barrier(comm);
+
+			// Print execution time
+			if (id == 0)
+			{
+				int p, t;
+				gettimeofday(&time_end, NULL);
+				double secs = (time_end.tv_sec - time_start.tv_sec) + (time_end.tv_usec - time_start.tv_usec) / 1000000.0;
+				printf("# %s appranks=%d deg=%d ", appname, num_appranks, nanos6_get_num_cluster_iranks());
+				printf(": iter=%d imb=%.3f time=%3.2f sec\n", iter, imbalance, secs);
+			}
+		}
+	}
+}
+
 
 int main( int argc, char *argv[] )
 {
 	int comm;							  // Application's communicator
 	int id, num_appranks;				  // Application (virtual) rank and number of ranks
-	int task;							  // Counters
-	struct timeval time_start, time_end;  // For timing each iteration
-	int niter = 10;
-	int ntasks_per_core = 100;
-	int ntasks = 48 * ntasks_per_core;
 	int runs_per_imbalance = 1;
 
 	// Initialize MPI:
@@ -131,97 +218,13 @@ int main( int argc, char *argv[] )
 	printf("nruns: %d\n", nruns);
 	float imbalance_step = 1.0 * (num_appranks - 1.0) / nruns;
 
-	int work_per_rank[num_appranks]; // in us
-
 	srand(100);
-
-	double imbalance;
 
 	int max_i = (num_appranks-1) / imbalance_step;
 	for(int i=0; i<max_i; i++) {
 		double target_imbalance = 1.0 + i * imbalance_step;
+		run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance);
 
-
-		for(int run=0; run < runs_per_imbalance; run++) {
-
-			// Rank 0 calculates work for each rank
-			if (id == 0) {
-				calculate_work(num_appranks, target_imbalance, work_per_rank);
-
-				long long tot = 0;
-				int max = 0;
-				printf("Work per rank (ms): \n");
-				for(int i=0; i < num_appranks; i++) {
-					printf("%.3f ", work_per_rank[i] / 1000);
-					tot += work_per_rank[i];
-					if (work_per_rank[i] > max) {
-						max = work_per_rank[i];
-					}
-				}
-				printf("\n");
-				double avg = (double)tot/num_appranks;
-				// printf("Average: %.3f\n", avg);
-				// printf("Max: %d\n", max);
-				imbalance = max / avg;
-				printf("Imbalance: %.3f\n", imbalance);
-			}
-
-			// Get work per task for my rank
-			int mywork_us;
-			MPI_Scatter(work_per_rank, 1, MPI_INT, &mywork_us, 1, MPI_INT, 0, comm);
-			MPI_Bcast(&imbalance, 1, MPI_DOUBLE, 0, comm);
-			printf("Rank %d gets %d (imb=%f)\n", id, mywork_us, imbalance);
-
-			// Time per task as struct timespec
-			struct timespec ts;
-			ts.tv_sec = mywork_us / 1000000;
-			ts.tv_nsec = (mywork_us % 1000000) * 1000;
-
-			// Allocate memory for all tasks
-			int bytes_per_task = 1;
-			char *mem = (char *)nanos6_lmalloc(ntasks * bytes_per_task);
-			for (int i=0;i<ntasks;i++) {
-				mem[i*bytes_per_task] = i+10;
-			}
-
-			// Run iterations
-			MPI_Barrier(comm);
-			for(int iter=0; iter < niter; iter++)
-			{
-				gettimeofday(&time_start, NULL);
-
-				// Create independent tasks
-				for(int task=0; task<ntasks; task++)
-				{
-					char *c = &mem[task * bytes_per_task];
-					#pragma oss task inout(c[0;bytes_per_task]) 
-					{
-						// Very simple correctness check on the first byte
-						assert(c[0] == (char)(task + iter + 10));
-						c[0] ++;
-						wait(ts);
-					}
-				}
-
-				#pragma oss taskwait noflush
-
-				// Barrier
-				MPI_Barrier(comm);
-
-				// Print execution time
-				if (id == 0)
-				{
-					int p, t;
-					gettimeofday(&time_end, NULL);
-					double secs = (time_end.tv_sec - time_start.tv_sec) + (time_end.tv_usec - time_start.tv_usec) / 1000000.0;
-					printf("# %s appranks=%d deg=%d ", argv[0], num_appranks, nanos6_get_num_cluster_iranks());
-					for (int i=1; i<argc; i++) {
-						printf("%s ", argv[i]);
-					}
-					printf(": iter=%d imb=%.3f time=%3.2f sec\n", iter, imbalance, secs);
-				}
-			}
-		}
 	}
 
 	// Terminate MPI:
