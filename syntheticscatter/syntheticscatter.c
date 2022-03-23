@@ -202,15 +202,18 @@ int main( int argc, char *argv[] )
 	int sweep_imbalance = 1;
 	double target_imbalance;
 
-	if (argc > 2) {
-		printf("Usage: %s <imbalance>\n");
-		printf("  imbalance is optional\n");
+	if (argc > 3) {
+		printf("Usage: %s <imbalance> <niter>\n");
+		printf("  imbalance and niter are optional\n");
 		return -1;
 	}
 	double imbalance;
-	if (argc == 2) {
+	if (argc >= 2) {
 		sweep_imbalance = 0;
 		target_imbalance = atof(argv[1]);
+	}
+	if (argc == 3) {
+		niter = atoi(argv[2]);
 	}
 
 	// Initialize MPI:
