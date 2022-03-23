@@ -92,6 +92,7 @@ def generate_plots(results, output_prefix_str):
 	niters = 1 + max(all_iters)
 
 	# Generate plot as function of memory
+	maxyy = 1
 	for appranks in apprankss:
 		for policy in policies:
 		
@@ -110,14 +111,17 @@ def generate_plots(results, output_prefix_str):
 					xx = [r['imb'] for (r,times) in curr] # x is imbalance
 					yy = [times for (r,times) in curr]
 					xx,yy = split_by_times(xx, yy)
-					print('xx =', xx)
-					print('yy =', yy)
-					plt.scatter(xx, yy, label = f'degree {degree}')
+					if len(xx) > 0:
+						maxyy = max(maxyy, max(yy))
+
+						print('xx =', xx)
+						print('yy =', yy)
+						plt.scatter(xx, yy, label = f'degree {degree}')
 
 				plt.title(f'Appranks {appranks} policy {policy}')
 				plt.xlabel('Imbalance')
 				plt.ylabel('Execution time (s)')
-				#plt.ylim(0,1)
+				plt.ylim(0,maxyy)
 				plt.legend(loc='best')
 				pdf.savefig()
 				plt.close()
