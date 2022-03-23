@@ -199,6 +199,19 @@ int main( int argc, char *argv[] )
 	int comm;							  // Application's communicator
 	int id, num_appranks;				  // Application (virtual) rank and number of ranks
 	int runs_per_imbalance = 1;
+	int sweep_imbalance = 1;
+	double target_imbalance;
+
+	if (argc > 2) {
+		printf("Usage: %s <imbalance>\n");
+		printf("  imbalance is optional\n");
+		return -1;
+	}
+	double imbalance;
+	if (argc == 2) {
+		sweep_imbalance = 0;
+		target_imbalance = atof(argv[1]);
+	}
 
 	// Initialize MPI:
 	// MPI_Init(&argc, &argv);	 // Cluster+DLB: do not call MPI_Init
@@ -210,21 +223,24 @@ int main( int argc, char *argv[] )
 	// Get the total number of appranks
 	MPI_Comm_size(comm, &num_appranks);
 
-	int estimated_time_secs = 30 * 60;  // for the baseline
-	double avg_imbalance = (1.0 + num_appranks) / 2.0;
-	double est_time_per_run = niter * ntasks_per_core * avg_time_per_task * avg_imbalance/ 1000000.0;
-	int nruns = estimated_time_secs / est_time_per_run;
-	printf("est_time_per_run = %.3f\n", est_time_per_run);
-	printf("nruns: %d\n", nruns);
-	float imbalance_step = 1.0 * (num_appranks - 1.0) / nruns;
-
 	srand(100);
 
-	int max_i = (num_appranks-1) / imbalance_step;
-	for(int i=0; i<max_i; i++) {
-		double target_imbalance = 1.0 + i * imbalance_step;
-		run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance);
+	if (sweep_imbalance) {
+		int estimated_time_secs = 30 * 60;  // for the baseline
+		double avg_imbalance = (1.0 + num_appranks) / 2.0;
+		double est_time_per_run = niter * ntasks_per_core * avg_time_per_task * avg_imbalance/ 1000000.0;
+		int nruns = estimated_time_secs / est_time_per_run;
+		printf("est_time_per_run = %.3f\n", est_time_per_run);
+		printf("nruns: %d\n", nruns);
+		float imbalance_step = 1.0 * (num_appranks - 1.0) / nruns;
 
+		int max_i = (num_appranks-1) / imbalance_step;
+		for(int i=0; i<max_i; i++) {
+			double target_imbalance = 1.0 + i * imbalance_step;
+			run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance);
+		}
+	} else {
+		run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance);
 	}
 
 	// Terminate MPI:
