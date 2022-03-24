@@ -26,13 +26,13 @@ def split_by_times(xx, yy):
 	return out_xx, out_yy
 
 # Template to create the command to run the benchmark
-command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --local-period 10 --monitor 200',
+command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --local-period 10 --monitor 20',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/syntheticscatter'])
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
-	return [2,4]
+	return [2,4,8,16]
 
 # Check whether the binary is missing
 def make():
@@ -53,7 +53,7 @@ def commands(num_nodes, hybrid_params):
 
 	max_degree = min(4, num_nodes)
 	for degree in range(1, max_degree+1):
-		for policy in ['local']: #('local', 'global'):
+		for policy in ['local','global']:
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
 					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
@@ -124,14 +124,20 @@ def generate_plots(results, output_prefix_str):
 
 						print('xx =', xx)
 						print('yy =', yy)
-						plt.scatter(xx, yy, label = f'degree {degree}', zorder = 10)
+						plt.scatter(xx, yy, label = f'degree {degree}')
 
 				plt.title(f'Appranks {appranks} policy {policy}')
 				plt.xlabel('Imbalance')
 				plt.ylabel('Execution time (s)')
 				plt.xlim(min_imb, max_imb)
 				plt.ylim(0,maxyy)
-				plt.legend(loc='best')
+
+				# Order legend to put the perfect balance (which was plotted first, so has index 0) last
+				handles, labels = plt.gca().get_legend_handles_labels()
+				n = len(handles)
+				order = list(range(1,n)) + [0] # List of indices according to original order
+				plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], loc='best')
+
 				pdf.savefig()
 				plt.close()
 

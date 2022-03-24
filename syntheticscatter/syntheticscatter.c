@@ -13,7 +13,7 @@
 int niter = 10;
 #define NTASKS_PER_CORE 100
 int ntasks_per_core = NTASKS_PER_CORE;
-int ntasks = 48 * NTASKS_PER_CORE;
+int ntasks = (48 * NTASKS_PER_CORE) - 24;
 
 // Comparison function for qsort of ints
 int cmpfunc(const void *a, const void *b)
