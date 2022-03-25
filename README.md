@@ -8,7 +8,7 @@ Get exactly two nodes and run:
 
 	salloc -q debug -c 48 -n 2 -t 02:00:00
 	cd cluster-dlb-benchmarks/build
-	make ..
+	cmake ..
 	make
 	make test
 

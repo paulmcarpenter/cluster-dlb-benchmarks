@@ -4,8 +4,8 @@
 __pycache__/
 archive/
 build/
-cmake/
 jobs/
 micropp/__pycache__/
 output/
 synthetic/__pycache__/
+preload-build_*
