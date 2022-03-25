@@ -53,7 +53,11 @@ def commands(num_nodes, hybrid_params):
 
 	max_degree = min(4, num_nodes)
 	for degree in range(1, max_degree+1):
-		for policy in ['local','global']:
+		if degree == 1:
+			policies = ['local']
+		else:
+			policies = ['local', 'global']
+		for policy in policies:
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
 					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
@@ -109,12 +113,16 @@ def generate_plots(results, output_prefix_str):
 				for degree in degrees:
 					lewi = 'true'
 					drom = 'true'
+					if degree == 1:
+						lcl_policies = ['local', 'global'] # Combine both, if happen to have been run
+					else:
+						lcl_policies = [policy]
 					curr = [ (r,times) for (r,times) in results \
 								if r['appranks'] == appranks \
 								   and r['degree'] == degree \
 								   and r['lewi'] == lewi \
 								   and r['drom'] == drom \
-								   and r['policy'] == policy \
+								   and r['policy'] in lcl_policies \
 								   and int(r['iter']) == niters-1]
 					xx = [float(r['imb']) for (r,times) in curr] # x is imbalance
 					yy = [times for (r,times) in curr]
@@ -122,6 +130,7 @@ def generate_plots(results, output_prefix_str):
 					if len(xx) > 0:
 						maxyy = max(maxyy, max(yy))
 
+						print(f'appranks {appranks} policy {policy} degree {degree}')
 						print('xx =', xx)
 						print('yy =', yy)
 						plt.scatter(xx, yy, label = f'degree {degree}')
