@@ -15,6 +15,40 @@ int niter = 10;
 int ntasks_per_core = NTASKS_PER_CORE;
 int ntasks = (16 * NTASKS_PER_CORE) - 8;
 
+
+float get_cpu_freq_mhz(void)
+{
+  FILE *fp;
+  char line[1035];
+
+  /* Open the command for reading. */
+  fp = popen("lscpu", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  const char *prefix = "CPU MHz: ";
+  size_t len_prefix = strlen(prefix);
+  float freq = 0;
+
+  while (fgets(line, sizeof(line), fp) != NULL) {
+  	if (strlen(line) >= len_prefix && memcmp(line, prefix, len_prefix) == 0) {
+		freq = atof(line + len_prefix);
+		break;
+	}
+  }
+
+  /* close */
+  pclose(fp);
+
+  return freq;
+}
+
+
+
+
 // Comparison function for qsort of ints
 int cmpfunc(const void *a, const void *b)
 {
@@ -225,6 +259,21 @@ int main( int argc, char *argv[] )
 	MPI_Comm_rank(comm, &id);
 	// Get the total number of appranks
 	MPI_Comm_size(comm, &num_appranks);
+
+	int degree = nanos6_get_num_cluster_nodes();
+	for (int i = 0; i < num_appranks; i++) {
+		if (i == id) {
+			int seq = 0;
+			for (int j = 0; j < degree; j++) {
+				#pragma oss task inout(seq) node(j)
+				{
+					float freq_ghz = get_cpu_freq_mhz() / 1000.0;
+					printf("Apprank %d internalRank %d: freq = %f GHz\n", i, j, freq_ghz);
+				}
+			}
+		}
+	}
+	MPI_Barrier(comm);
 
 	srand(100);
 
