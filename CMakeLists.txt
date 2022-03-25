@@ -77,6 +77,7 @@ add_executable(dmalloc-redistribute tests/dmalloc-redistribute.c)
 add_executable(lend tests/lend.c)
 add_executable(synthetic_unbalanced synthetic/unbalanced.c)
 add_executable(syntheticscatter syntheticscatter/syntheticscatter.c)
+add_executable(syntheticslow syntheticslow/syntheticslow.c)
 
 add_test(NAME check_num_nodes COMMAND check_num_nodes.py --expect 2)
 add_test(NAME check-redistribute-degree-1 COMMAND runhybrid.py --debug false --vranks 4 --local --degree 1 --local-period 120 --monitor 200  ./check-redistribute)
