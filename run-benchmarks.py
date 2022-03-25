@@ -14,6 +14,7 @@ from syntheticscatter import syntheticscatter
 from syntheticslow import syntheticslow
 from syntheticconvergence import syntheticconvergence
 from bestdegree import bestdegree
+from syntheticslownord import syntheticslownord
 from micropp import micropp
 from nbody import nbody
 import check_num_nodes
@@ -27,16 +28,17 @@ except ImportError:
 	canImportNumpy = False
 
 # Default parameters
-apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody', 'convergence', 'bestdegree']
-needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False, 'convergence' : True, 'bestdegree' : True}
-include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True, 'convergence' : True, 'bestdegree' : True}
+apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody', 'convergence', 'bestdegree', 'slownord']
+needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False, 'convergence' : True, 'bestdegree' : True, 'slownord' : True}
+include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True, 'convergence' : True, 'bestdegree' : True, 'slownord' : True}
 apps_desc = {'synthetic' : 'synthetic benchmarks',
 			'micropp' : 'micropp benchmarks',
 			'scatter' : 'synthetic scatter benchmark',
 			'slow' : 'test with slow node',
 			'nbody' : 'n-body benchmark',
 			'convergence' : 'convergence benchmark',
-			'bestdegree' : 'bestdegree benchmark'}
+			'bestdegree' : 'bestdegree benchmark',
+                        'slownord' : 'broken: slow node on Nord3'}}
 
 verbose = True
 dry_run = False
@@ -316,6 +318,8 @@ def make():
 		ok = ok and syntheticconvergence.make()
 	if ok and include_apps['bestdegree']:
 		ok = ok and bestdegree.make()
+	if ok and include_apps['slownord']:
+		ok = ok and syntheticslownord.make()
 	if ok and include_apps['micropp']:
 		ok = ok and micropp.make()
 	if ok and include_apps['nbody']:
@@ -338,7 +342,10 @@ def all_commands(num_nodes, hybrid_params, benchmark):
 	if benchmark == 'bestdegree':
 		for cmd in bestdegree.commands(num_nodes, hybrid_params):
 			yield cmd
-	if benchmark == 'micropp':
+	if include_apps['slownord']:
+		for cmd in syntheticslownord.commands(num_nodes, hybrid_params):
+			yield cmd
+	if include_apps['micropp']:
 		for cmd in micropp.commands(num_nodes, hybrid_params):
 			yield cmd
 	if benchmark == 'nbody':
@@ -377,6 +384,8 @@ def all_num_nodes():
 		num_nodes.update(syntheticconvergence.num_nodes())
 	if include_apps['bestdegree']:
 		num_nodes.update(bestdegree.num_nodes())
+	if include_apps['slownord']:
+		num_nodes.update(syntheticslownord.num_nodes())
 	if include_apps['micropp']:
 		num_nodes.update(micropp.num_nodes())
 	if include_apps['nbody']:
@@ -396,6 +405,8 @@ def generate_plots(results):
 		syntheticconvergence.generate_plots(results, output_prefix_str)
 	if include_apps['bestdegree']:
 		bestdegree.generate_plots(results, output_prefix_str)
+	if include_apps['slownord']:
+		syntheticslownord.generate_plots(results, output_prefix_str)
 	if include_apps['micropp']:
 		micropp.generate_plots(results, output_prefix_str)
 	if include_apps['nbody']:

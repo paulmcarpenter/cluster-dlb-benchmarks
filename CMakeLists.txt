@@ -59,8 +59,13 @@ add_compile_options(-O0 -ggdb -g --ompss-2 -k -lm)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --ompss-2")
 
 # MPI
-add_compile_options(-I/apps/MVAPICH2/2.3rc1/INTEL/include -L/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,-rpath -Wl,/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,--enable-new-dtags -lmpi)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -I/apps/MVAPICH2/2.3rc1/INTEL/include -L/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,-rpath -Wl,/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,--enable-new-dtags -lmpi")
+# Intel: mpicc -show -c test.c
+
+add_compile_options("-I/.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/include -L/.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib/release -L/.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib -Xlinker --enable-new-dtags -Xlinker -rpath -Xlinker /.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib/release -Xlinker -rpath -Xlinker /.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib -lmpifort -lmpi -lrt -lpthread -Wl,-z,now -Wl,-z,relro -Wl,-z,noexecstack -Xlinker --enable-new-dtags -ldl")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -I/.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/include -L/.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib/release -L/.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib -Xlinker --enable-new-dtags -Xlinker -rpath -Xlinker /.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib/release -Xlinker -rpath -Xlinker /.statelite/tmpfs/gpfs/apps/NORD3/ONEAPI/2021.4.0.3422/mpi/2021.4.0/lib -lmpifort -lmpi -lrt -lpthread -Wl,-z,now -Wl,-z,relro -Wl,-z,noexecstack -Xlinker --enable-new-dtags -ldl")
+
+#-I/apps/MVAPICH2/2.3rc1/INTEL/include -L/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,-rpath -Wl,/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,--enable-new-dtags -lmpi)
+#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -I/apps/MVAPICH2/2.3rc1/INTEL/include -L/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,-rpath -Wl,/apps/MVAPICH2/2.3rc1/INTEL/lib -Wl,--enable-new-dtags -lmpi")
 
 # Enable address sanitizer
 if (WITH_ASAN)
@@ -82,6 +87,7 @@ add_executable(syntheticconvergence syntheticconvergence/syntheticconvergence.c)
 add_executable(localbad localbad/localbad.c)
 add_executable(offloadlatency offloadlatency/offloadlatency.c)
 add_executable(bestdegree bestdegree/bestdegree.c)
+add_executable(syntheticslownord syntheticslownord/syntheticslownord.c)
 
 add_test(NAME check_num_nodes COMMAND check_num_nodes.py --expect 2)
 add_test(NAME check-redistribute-degree-1 COMMAND runhybrid.py --debug false --vranks 4 --local --degree 1 --local-period 120 --monitor 200  ./check-redistribute)
