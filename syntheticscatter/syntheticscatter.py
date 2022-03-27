@@ -133,7 +133,7 @@ def generate_plots(results, output_prefix_str):
 						print(f'appranks {appranks} policy {policy} degree {degree}')
 						print('xx =', xx)
 						print('yy =', yy)
-						plt.scatter(xx, yy, label = f'degree {degree}')
+						plt.plot(xx, yy, label = f'degree {degree}', marker='o')
 
 				plt.title(f'Appranks {appranks} policy {policy}')
 				plt.xlabel('Imbalance')
