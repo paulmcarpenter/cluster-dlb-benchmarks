@@ -102,54 +102,78 @@ def generate_plots(results, output_prefix_str):
 	maxyy = 1
 	for appranks in apprankss:
 		for policy in policies:
+
+			# Get scale
+			curr2 = [ (r,times) for (r,times) in results \
+						if r['appranks'] == appranks \
+						   and r['degree'] == degree \
+						   and r['lewi'] == lewi \
+						   and r['drom'] == drom \
+						   and r['policy'] in lcl_policies \
+						   and int(r['iter']) == niters-1 ]
+			ymax = max([times for (r,times) in curr])
+			xmax = max([float(r['imb']) for (r,times) in curr])
+
+			for slow_worst in [0,1]:
 		
-			with PdfPages('output/%ssynthetic-slow-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
+				if slow_worst == 0:
+					whichslow = 'slowleast'
+				else:
+					whichslow = 'slowmost'
 
-				# Draw perfect balance line
-				min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
-				max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
-				print(min_imb, max_imb, baseline_time)
-				plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
+				with PdfPages('output/%ssynthetic-slow-%d-%s-%s.pdf' % (output_prefix_str,appranks,whichslow, policy)) as pdf:
 
-				for degree in degrees:
-					lewi = 'true'
-					drom = 'true'
-					if degree == 1:
-						lcl_policies = ['local', 'global'] # Combine both, if happen to have been run
+					# Draw perfect balance line
+					min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
+					max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
+					print(min_imb, max_imb, baseline_time)
+					plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
+
+					for degree in degrees:
+						lewi = 'true'
+						drom = 'true'
+						if degree == 1:
+							lcl_policies = ['local', 'global'] # Combine both, if happen to have been run
+						else:
+							lcl_policies = [policy]
+						curr = [ (r,times) for (r,times) in results \
+									if r['appranks'] == appranks \
+									   and int(r['slow_worst']) == slow_worst \
+									   and r['degree'] == degree \
+									   and r['lewi'] == lewi \
+									   and r['drom'] == drom \
+									   and r['policy'] in lcl_policies \
+									   and int(r['iter']) == niters-1 ]
+						xx = [float(r['imb']) for (r,times) in curr] # x is imbalance
+						yy = [times for (r,times) in curr]
+							
+						xx,yy = split_by_times(xx, yy)
+						if len(xx) > 0:
+							maxyy = max(maxyy, max(yy))
+
+							print(f'appranks {appranks} policy {policy} degree {degree}')
+							print('xx =', xx)
+							print('yy =', yy)
+							plt.scatter(xx, yy, label = f'degree {degree}')
+
+					plt.title(f'Appranks {appranks} policy {policy}')
+					if slow_worst == 0:
+						plt.xlabel('Imbalance (slow node has least work)')
+						plt.xlim(max_imb, 1.0)
 					else:
-						lcl_policies = [policy]
-					curr = [ (r,times) for (r,times) in results \
-								if r['appranks'] == appranks \
-								   and r['degree'] == degree \
-								   and r['lewi'] == lewi \
-								   and r['drom'] == drom \
-								   and r['policy'] in lcl_policies \
-								   and int(r['iter']) == niters-1]
-					xx = [float(r['imb']) for (r,times) in curr] # x is imbalance
-					yy = [times for (r,times) in curr]
-					xx,yy = split_by_times(xx, yy)
-					if len(xx) > 0:
-						maxyy = max(maxyy, max(yy))
+						plt.xlabel('Imbalance (slow node has most work)')
+						plt.xlim(1.0, max_imb)
+					plt.ylabel('Execution time (s)')
+					plt.ylim(0,maxyy)
 
-						print(f'appranks {appranks} policy {policy} degree {degree}')
-						print('xx =', xx)
-						print('yy =', yy)
-						plt.scatter(xx, yy, label = f'degree {degree}')
+					# Order legend to put the perfect balance (which was plotted first, so has index 0) last
+					handles, labels = plt.gca().get_legend_handles_labels()
+					n = len(handles)
+					order = list(range(1,n)) + [0] # List of indices according to original order
+					plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], loc='best')
 
-				plt.title(f'Appranks {appranks} policy {policy}')
-				plt.xlabel('Imbalance')
-				plt.ylabel('Execution time (s)')
-				plt.xlim(min_imb, max_imb)
-				plt.ylim(0,maxyy)
-
-				# Order legend to put the perfect balance (which was plotted first, so has index 0) last
-				handles, labels = plt.gca().get_legend_handles_labels()
-				n = len(handles)
-				order = list(range(1,n)) + [0] # List of indices according to original order
-				plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], loc='best')
-
-				pdf.savefig()
-				plt.close()
+					pdf.savefig()
+					plt.close()
 
 
 
