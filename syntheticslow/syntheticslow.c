@@ -52,7 +52,7 @@ int gen(int m, int total, int max, int *pieces) {
 int avg_time_per_task = 50000; // in ms
 
 // Calculate work on each rank with a given target imbalance
-int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank)
+int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank, int *slow_rank, int slow_is_worst_rank)
 {
 	int worst_work = avg_time_per_task * target_imbalance;
 	if (target_imbalance > num_appranks) {
@@ -62,7 +62,7 @@ int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank
 	}
 	printf("target_imbalance = %f\n", target_imbalance);
 
-	// Last (slow) rank always gets the worst amount of work
+	// Last rank always gets the worst amount of work
 	int worst_rank = num_appranks-1;
 
 	// How much work is left to allocate to get the right average work
@@ -86,13 +86,25 @@ int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank
 
 	// Set up work_per_rank array
 	int i = 0;
+	int best_rank = -1;
+	int best_work = worst_work;
 	for(int j=0; j<num_appranks; j++) {
 		if (j != worst_rank) {
 			work_per_rank[j] = tmp[i];
+			if (tmp[i] < best_work) {
+				best_work = tmp[i];
+				best_rank = j;
+			}
 			i++;
 		} else {
 			work_per_rank[j] = worst_work;
 		}
+	}
+
+	if (slow_is_worst_rank) {
+		*slow_rank = worst_rank;
+	} else {
+		*slow_rank = best_rank;
 	}
 }
 
@@ -110,7 +122,7 @@ void wait(const struct timespec ts)
 	}
 }
 
-void run_with_imbalance(const char *appname, int id, int num_appranks, double target_imbalance, int runs_per_imbalance)
+void run_with_imbalance(const char *appname, int id, int num_appranks, double target_imbalance, int runs_per_imbalance, int slow_is_worst_rank)
 {
 	int task;							  // Counters
 	int comm = nanos6_app_communicator();  // Cluster+DLB: use application communicator
@@ -118,10 +130,11 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 	int work_per_rank[num_appranks]; // in us
 	double imbalance = 0.0;
 	for(int run=0; run < runs_per_imbalance; run++) {
+		int slow_rank;
 
 		// Rank 0 calculates work for each rank
 		if (id == 0) {
-			calculate_work(num_appranks, target_imbalance, work_per_rank);
+			calculate_work(num_appranks, target_imbalance, work_per_rank, &slow_rank, slow_is_worst_rank);
 
 			long long tot = 0;
 			int max = 0;
@@ -133,7 +146,7 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 					max = work_per_rank[i];
 				}
 			}
-			printf("\n");
+			printf("\n slow_rank = %d\n", slow_rank);
 			double avg = (double)tot/num_appranks;
 			// printf("Average: %.3f\n", avg);
 			// printf("Max: %d\n", max);
@@ -145,6 +158,7 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 		int mywork_us;
 		MPI_Scatter(work_per_rank, 1, MPI_INT, &mywork_us, 1, MPI_INT, 0, comm);
 		MPI_Bcast(&imbalance, 1, MPI_DOUBLE, 0, comm);
+		MPI_Bcast(&slow_rank, 1, MPI_INT, 0, comm);
 		printf("Rank %d gets %d (imb=%f)\n", id, mywork_us, imbalance);
 
 		// Time per task as struct timespec
@@ -167,6 +181,8 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 
 		// Run iterations
 		MPI_Barrier(comm);
+
+
 		for(int iter=0; iter < niter; iter++)
 		{
 			gettimeofday(&time_start, NULL);
@@ -180,7 +196,7 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 					// Very simple correctness check on the first byte
 					assert(c[0] == (char)(task + iter + 10));
 					c[0] ++;
-					if (nanos6_get_cluster_physical_node_id() == nanos6_get_num_cluster_physical_nodes() -1 ) {
+					if (nanos6_get_cluster_physical_node_id() == slow_rank) {
 						wait(ts_slow);
 					} else {
 						wait(ts);
@@ -200,7 +216,7 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 				gettimeofday(&time_end, NULL);
 				double secs = (time_end.tv_sec - time_start.tv_sec) + (time_end.tv_usec - time_start.tv_usec) / 1000000.0;
 				printf("# %s appranks=%d deg=%d ", appname, num_appranks, nanos6_get_num_cluster_iranks());
-				printf(": iter=%d imb=%.3f time=%3.2f sec\n", iter, imbalance, secs);
+				printf(": iter=%d slow_worst=%d imb=%.3f time=%3.2f sec\n", iter, slow_is_worst_rank, imbalance, secs);
 			}
 		}
 	}
@@ -239,6 +255,10 @@ int main( int argc, char *argv[] )
 	// Get the total number of appranks
 	MPI_Comm_size(comm, &num_appranks);
 
+	// in choosing the best or worst rank, we assume the number of application ranks
+	// equals the number of nodes
+	assert(nanos6_get_num_cluster_physical_nodes() == num_appranks);
+
 	int degree = nanos6_get_num_cluster_nodes();
 	for (int i = 0; i < num_appranks; i++) {
 		if (i == id) {
@@ -259,7 +279,7 @@ int main( int argc, char *argv[] )
 	if (sweep_imbalance) {
 		int estimated_time_secs = 30 * 60;  // for the baseline
 		double avg_imbalance = (1.0 + num_appranks) / 2.0;
-		double est_time_per_run = niter * ntasks_per_core * avg_time_per_task * avg_imbalance/ 1000000.0;
+		double est_time_per_run = niter * ntasks_per_core * avg_time_per_task * slowdown_last_node * avg_imbalance/ 1000000.0;
 		int nruns = estimated_time_secs / est_time_per_run;
 		printf("est_time_per_run = %.3f\n", est_time_per_run);
 		printf("nruns: %d\n", nruns);
@@ -268,10 +288,16 @@ int main( int argc, char *argv[] )
 		int max_i = (num_appranks-1) / imbalance_step;
 		for(int i=0; i<max_i; i++) {
 			double target_imbalance = 1.0 + i * imbalance_step;
-			run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance);
+			run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance, 1);
+			run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance, 0);
 		}
 	} else {
-		run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance);
+		int slow_is_worst_rank = 1;
+		if (target_imbalance < 0) {
+			target_imbalance = -target_imbalance;
+			slow_is_worst_rank = 0;
+		}
+		run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance, slow_is_worst_rank);
 	}
 
 	// Terminate MPI:
