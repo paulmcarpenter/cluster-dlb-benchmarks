@@ -87,7 +87,7 @@ int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank
 	// Set up work_per_rank array
 	int i = 0;
 	int best_rank = -1;
-	int best_work = worst_work;
+	int best_work = worst_work + 1;
 	for(int j=0; j<num_appranks; j++) {
 		if (j != worst_rank) {
 			work_per_rank[j] = tmp[i];
