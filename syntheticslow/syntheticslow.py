@@ -123,7 +123,8 @@ def generate_plots(results, output_prefix_str):
 				else:
 					whichslow = 'slowmost'
 
-				with PdfPages('output/%ssynthetic-slow-%d-%s-%s.pdf' % (output_prefix_str,appranks,whichslow, policy)) as pdf:
+				filename = 'output/%ssynthetic-slow-%d-%s-%s.pdf' % (output_prefix_str,appranks,whichslow, policy)
+				with PdfPages(filename) as pdf:
 
 					# Draw perfect balance line
 					min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
@@ -148,6 +149,7 @@ def generate_plots(results, output_prefix_str):
 						xx,yy = split_by_times(xx, yy)
 						if len(xx) > 0:
 
+							print(filename)
 							print(f'appranks {appranks} policy {policy} degree {degree}')
 							print('xx =', xx)
 							print('yy =', yy)
