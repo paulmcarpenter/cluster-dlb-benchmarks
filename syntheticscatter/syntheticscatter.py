@@ -43,8 +43,12 @@ def make():
 	else:
 		return True
 	
+est_time_secs = 0
+
 # Return the list of all commands to run
 def commands(num_nodes, hybrid_params):
+	global est_time_secs
+	est_time_secs = 0
 	if num_nodes == 1:
 		# No commands if running on single node
 		return
@@ -61,7 +65,12 @@ def commands(num_nodes, hybrid_params):
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
 					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
+					est_time_secs += 30 * 60
 					yield cmd
+
+def get_est_time_secs():
+	global est_time_secs
+	return est_time_secs
 
 # Get all values of a field 
 def get_values(results, field):

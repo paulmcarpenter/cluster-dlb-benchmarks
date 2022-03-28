@@ -83,7 +83,7 @@ def print_jobid():
 job_script_template = """#! /bin/bash
 #SBATCH --nodes=$num_nodes
 #SBATCH --cpus-per-task=48
-#SBATCH --time=03:00:00
+#SBATCH --time=$hours:$mins:00
 #SBATCH --qos=$qos
 #SBATCH --output=$job_name.out
 #SBATCH --error=$job_name.err
@@ -145,7 +145,7 @@ def run_single_command(cmd, command=None, keep_output=True, num_nodes=None):
 	if not dry_run:
 		s = subprocess.run(full_cmd, shell=True)
 	
-def create_job_script(num_nodes):
+def create_job_script(num_nodes, hours, mins):
 	if qos == 'debug' and num_nodes > 4:
 		print('Cannot run >4 nodes on debug queue')
 		return None
@@ -165,7 +165,7 @@ def create_job_script(num_nodes):
 		args_list.append('--extrae')
 	args = ' '.join(args_list)
 	with open(job_script_name, 'w') as fp:
-		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args, qos=qos), file = fp)
+		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args, qos=qos, hours=hours, mins=mins), file = fp)
 	return job_script_name
 
 def submit_job_script(job_script_name):
@@ -252,6 +252,10 @@ def cmake_make():
 	os.chdir(owd)
 	return ret == 0
 		
+def decode_time_secs(secs):
+	mins = int(secs / 60)
+	return mins // 60, mins % 60
+
 def make():
 	if not os.path.exists('build'):
 		print('Please create build/ directory first')
@@ -292,6 +296,20 @@ def all_commands(num_nodes, hybrid_params):
 	if include_apps['micropp']:
 		for cmd in micropp.commands(num_nodes, hybrid_params):
 			yield cmd
+
+def get_est_time_secs():
+	my_est_time_secs = 0
+	if include_apps['synthetic']:
+		my_est_time_secs += unbalanced_sweep.get_est_time_secs()
+	if include_apps['scatter']:
+		my_est_time_secs += syntheticscatter.get_est_time_secs()
+	if include_apps['slow']:
+		my_est_time_secs += syntheticslow.get_est_time_secs()
+	if include_apps['micropp']:
+		my_est_time_secs += micropp.get_est_time_secs()
+	return my_est_time_secs
+
+
 
 def all_num_nodes():
 	num_nodes = set([])
@@ -479,13 +497,20 @@ def main(argv):
 		if fail:
 			return 1
 		for n in num_nodes:
-			job_script_name = create_job_script(n)
-			if not job_script_name is None:
-				if dry_run:
-					for cmd in all_commands(n, hybrid_params):
-						if filter_command(cmd):
-							print(cmd)
-				else:
+			if dry_run:
+				for cmd in all_commands(n, hybrid_params):
+					if filter_command(cmd):
+						print(cmd)
+				hours, mins = decode_time_secs(get_est_time_secs())
+				print(f'Estimated time {hours} hours and {mins} mins')
+			else:
+				# Go through all commands 
+				for cmd in all_commands(n, hybrid_params):
+					pass
+				hours, mins = decode_time_secs(get_est_time_secs())
+				print(f'{n} nodes: Estimated time {hours} hours and {mins} mins')
+				job_script_name = create_job_script(n)
+				if not job_script_name is None:
 					submit_job_script(job_script_name)
 		return 1
 	elif command == 'process':

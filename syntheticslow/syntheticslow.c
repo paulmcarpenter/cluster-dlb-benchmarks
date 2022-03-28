@@ -277,7 +277,7 @@ int main( int argc, char *argv[] )
 	srand(100);
 
 	if (sweep_imbalance) {
-		int estimated_time_secs = 30 * 60;  // for the baseline
+		int estimated_time_secs = 15 * 60 * num_appranks;  // half-hour for 2, hour for 4, etc.
 		double avg_imbalance = (1.0 + num_appranks) / 2.0;
 		double est_time_per_run = niter * ntasks_per_core * avg_time_per_task * slowdown_last_node * avg_imbalance/ 1000000.0;
 		int nruns = estimated_time_secs / est_time_per_run;
