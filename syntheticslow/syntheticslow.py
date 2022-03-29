@@ -26,8 +26,8 @@ def split_by_times(xx, yy):
 	return out_xx, out_yy
 
 # Template to create the command to run the benchmark
-# NOTE: --debug false does not work on Nord!
-command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug true --vranks $vranks --$policy --degree $degree --local-period 10 --monitor 20',
+# NOTE: --debug false does not work on Nord3!
+command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --local-period 10 --monitor 20',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
 				             'build/syntheticslow'])
 
