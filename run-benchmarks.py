@@ -126,10 +126,14 @@ def filter_command(cmd):
 	return True
 			
 
-def run_single_command(cmd, command=None, keep_output=True, num_nodes=None):
+def run_single_command(cmd, benchmark=None, command=None, keep_output=True, num_nodes=None):
 	global verbose
 	if keep_output:
-		job_output_file = unique_output_name(job_output_dir, f'{command}{num_nodes}_', '.txt')
+		if benchmark is None:
+			benchmark_str=''
+		else:
+			benchmark_str = '_' + benchmark + '_'
+		job_output_file = unique_output_name(job_output_dir, f'{command}{benchmark_str}{num_nodes}_', '.txt')
 		hybrid_directory = job_output_file[:-4] + '.hybrid'
 		cmd = Template(cmd).substitute(hybrid_directory = hybrid_directory)
 		if not dry_run:
@@ -169,7 +173,7 @@ def create_job_script(num_nodes, hours, mins):
 	return job_script_name
 
 def submit_job_script(job_script_name):
-	run_single_command(f'sbatch {job_script_name}', None, keep_output=False)
+	run_single_command(f'sbatch {job_script_name}', benchmark=None, command=None, keep_output=False)
 
 def get_from_command(regex, desc, command, fullname):
 	m = re.search(regex, command)
@@ -222,7 +226,7 @@ def get_all_results():
 	if not archived_subfolder is None:
 		output_dir = os.path.join(archive_output_dir, archived_subfolder)
 	filenames = os.listdir(output_dir)
-	re_filename = re.compile('(interactive|batch)[1-9][0-9]*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9]*-[0-9]*.*\.txt$')
+	re_filename = re.compile('(interactive|batch)([a-z_]*)[1-9][0-9]*_[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_[0-9]*-[0-9]*.*\.txt$')
 	# build/synthetic_unbalanced appranks=4 deg=1 10 480 1k 0 48.6 16.0 2.5 2.0 : iter=0 time=0.54 sec
 	results = []
 	for filename in filenames:
@@ -286,19 +290,19 @@ def make():
 def all_commands(num_nodes, hybrid_params):
 	if include_apps['synthetic']:
 		for cmd in unbalanced_sweep.commands(num_nodes, hybrid_params):
-			yield cmd
+			yield (cmd, 'synthetic')
 	if include_apps['scatter']:
 		for cmd in syntheticscatter.commands(num_nodes, hybrid_params):
-			yield cmd
+			yield (cmd, 'scatter')
 	if include_apps['slow']:
 		for cmd in syntheticslow.commands(num_nodes, hybrid_params):
-			yield cmd
+			yield (cmd, 'slow')
 	if include_apps['micropp']:
 		for cmd in micropp.commands(num_nodes, hybrid_params):
-			yield cmd
+			yield (cmd, 'micropp')
 
 def get_est_time_secs():
-	my_est_time_secs = 0
+	my_est_time_secs = 60 * 60 # start with one hour slack
 	if include_apps['synthetic']:
 		my_est_time_secs += unbalanced_sweep.get_est_time_secs()
 	if include_apps['scatter']:
@@ -477,9 +481,9 @@ def main(argv):
 		os.makedirs(job_output_dir, exist_ok=True)
 		try:
 			for num_nodes in nums_nodes:
-				for cmd in all_commands(num_nodes, hybrid_params):
+				for cmd, benchmark in all_commands(num_nodes, hybrid_params):
 					if filter_command(cmd):
-						run_single_command(cmd, command, keep_output=True, num_nodes=num_nodes)
+						run_single_command(cmd, benchmark, command, keep_output=True, num_nodes=num_nodes)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		print_time('Finished at')
@@ -498,18 +502,18 @@ def main(argv):
 			return 1
 		for n in num_nodes:
 			if dry_run:
-				for cmd in all_commands(n, hybrid_params):
+				for cmd, benchmark in all_commands(n, hybrid_params):
 					if filter_command(cmd):
 						print(cmd)
 				hours, mins = decode_time_secs(get_est_time_secs())
 				print(f'Estimated time {hours} hours and {mins} mins')
 			else:
-				# Go through all commands 
-				for cmd in all_commands(n, hybrid_params):
+				# Go through all commands to get estimated time only
+				for cmd, benchmark in all_commands(n, hybrid_params):
 					pass
 				hours, mins = decode_time_secs(get_est_time_secs())
 				print(f'{n} nodes: Estimated time {hours} hours and {mins} mins')
-				job_script_name = create_job_script(n)
+				job_script_name = create_job_script(n, hours, mins)
 				if not job_script_name is None:
 					submit_job_script(job_script_name)
 		return 1
