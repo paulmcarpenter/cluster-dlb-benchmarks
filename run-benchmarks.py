@@ -12,6 +12,7 @@ from synthetic import unbalanced_sweep
 from syntheticscatter import syntheticscatter
 from syntheticslow import syntheticslow
 from micropp import micropp
+from nbody import nbody
 import check_num_nodes
 from string import Template
 import copy
@@ -23,13 +24,14 @@ except ImportError:
 	canImportNumpy = False
 
 # Default parameters
-apps = ['synthetic', 'micropp', 'scatter', 'slow']
-needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True}
-include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True}
+apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody']
+needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False}
+include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True}
 apps_desc = {'synthetic' : 'synthetic benchmarks',
 			'micropp' : 'micropp benchmarks',
 			'scatter' : 'synthetic scatter benchmark',
-                        'slow' : 'test with slow node (on Nord 3)'}
+			'slow' : 'test with slow node',
+			'nbody' : 'n-body benchmark'}
 
 verbose = True
 dry_run = False
@@ -285,6 +287,8 @@ def make():
 		ok = ok and syntheticslow.make()
 	if ok and include_apps['micropp']:
 		ok = ok and micropp.make()
+	if ok and include_apps['nbody']:
+		ok = ok and nbody.make()
 	return ok
 
 def all_commands(num_nodes, hybrid_params):
@@ -300,6 +304,9 @@ def all_commands(num_nodes, hybrid_params):
 	if include_apps['micropp']:
 		for cmd in micropp.commands(num_nodes, hybrid_params):
 			yield (cmd, 'micropp')
+	if include_apps['nbody']:
+		for cmd in nbody.commands(num_nodes, hybrid_params):
+			yield (cmd, 'nbody')
 
 def get_est_time_secs():
 	my_est_time_secs = 60 * 60 # start with one hour slack
@@ -311,6 +318,8 @@ def get_est_time_secs():
 		my_est_time_secs += syntheticslow.get_est_time_secs()
 	if include_apps['micropp']:
 		my_est_time_secs += micropp.get_est_time_secs()
+	if include_apps['nbody']:
+		my_est_time_secs += nbody.get_est_time_secs()
 	return my_est_time_secs
 
 
@@ -325,6 +334,8 @@ def all_num_nodes():
 		num_nodes.update(syntheticslow.num_nodes())
 	if include_apps['micropp']:
 		num_nodes.update(micropp.num_nodes())
+	if include_apps['nbody']:
+		num_nodes.update(nbody.num_nodes())
 	return sorted(num_nodes)
 
 def generate_plots(results):
@@ -338,6 +349,8 @@ def generate_plots(results):
 		syntheticslow.generate_plots(results, output_prefix_str)
 	if include_apps['micropp']:
 		micropp.generate_plots(results, output_prefix_str)
+	if include_apps['nbody']:
+		nbody.generate_plots(results, output_prefix_str)
 		
 
 def main(argv):
