@@ -108,7 +108,7 @@ def generate_plots(results, output_prefix_str):
 									   and r['degree'] == degree \
 									   and r['lewi'] == lewi \
 									   and r['drom'] == drom \
-									   and r['policy'] == policy]
+									   and (r['policy'] == policy or degree == 1)]
 						if len(res) > 0:
 							nsteps = 1+max([int(r['step']) for (r,times) in results])
 
@@ -150,7 +150,7 @@ def generate_plots(results, output_prefix_str):
 							   and r['degree'] == degree \
 							   and r['lewi'] == lewi \
 							   and r['drom'] == drom \
-							   and r['policy'] == policy \
+							   and (r['policy'] == policy or int(degree) == 1)\
 							   and int(r['step']) >= nsteps*0.67  ] 
 				vals = []
 				for step in range(0,nsteps):
