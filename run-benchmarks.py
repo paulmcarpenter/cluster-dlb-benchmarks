@@ -11,6 +11,7 @@ import subprocess
 from synthetic import unbalanced_sweep
 from syntheticscatter import syntheticscatter
 from syntheticslow import syntheticslow
+from syntheticconvergence import syntheticconvergence
 from micropp import micropp
 from nbody import nbody
 import check_num_nodes
@@ -24,14 +25,15 @@ except ImportError:
 	canImportNumpy = False
 
 # Default parameters
-apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody']
-needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False}
-include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True}
+apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody', 'convergence']
+needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False, 'convergence' : True}
+include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True, 'convergence' : True}
 apps_desc = {'synthetic' : 'synthetic benchmarks',
 			'micropp' : 'micropp benchmarks',
 			'scatter' : 'synthetic scatter benchmark',
 			'slow' : 'test with slow node',
-			'nbody' : 'n-body benchmark'}
+			'nbody' : 'n-body benchmark',
+			'convergence' : 'convergence benchmark'}
 
 verbose = True
 dry_run = False
@@ -100,6 +102,7 @@ def unique_output_name(subdir, prefix="", suffix=""):
 	counter = ''
 	k = 1
 	while k<100:
+
 		fullname = os.path.join(subdir, prefix+basename+counter+suffix)
 		if not os.path.exists(fullname):
 			return fullname
@@ -212,6 +215,7 @@ def get_file_results(fullname, results):
 				r['lewi'] = lewi
 				r['drom'] = drom
 				r['policy'] = policy
+				r['fullname'] = fullname
 				time = float(m.group(5))
 				results.append((r,time))
 				key = f"executable: {r['executable']} appranks: {r['appranks']} degree: {r['degree']} policy: {r['policy']} lewi: {r['lewi']} drom: {r['drom']}"
@@ -285,6 +289,8 @@ def make():
 		ok = ok and syntheticscatter.make()
 	if ok and include_apps['slow']:
 		ok = ok and syntheticslow.make()
+	if ok and include_apps['convergence']:
+		ok = ok and syntheticconvergence.make()
 	if ok and include_apps['micropp']:
 		ok = ok and micropp.make()
 	if ok and include_apps['nbody']:
@@ -301,6 +307,9 @@ def all_commands(num_nodes, hybrid_params):
 	if include_apps['slow']:
 		for cmd in syntheticslow.commands(num_nodes, hybrid_params):
 			yield (cmd, 'slow')
+	if include_apps['convergence']:
+		for cmd in syntheticconvergence.commands(num_nodes, hybrid_params):
+			yield (cmd, 'convergence')
 	if include_apps['micropp']:
 		for cmd in micropp.commands(num_nodes, hybrid_params):
 			yield (cmd, 'micropp')
@@ -316,6 +325,8 @@ def get_est_time_secs():
 		my_est_time_secs += syntheticscatter.get_est_time_secs()
 	if include_apps['slow']:
 		my_est_time_secs += syntheticslow.get_est_time_secs()
+	if include_apps['convergence']:
+		my_est_time_secs += syntheticconvergence.get_est_time_secs()
 	if include_apps['micropp']:
 		my_est_time_secs += micropp.get_est_time_secs()
 	if include_apps['nbody']:
@@ -332,6 +343,8 @@ def all_num_nodes():
 		num_nodes.update(syntheticscatter.num_nodes())
 	if include_apps['slow']:
 		num_nodes.update(syntheticslow.num_nodes())
+	if include_apps['convergence']:
+		num_nodes.update(syntheticconvergence.num_nodes())
 	if include_apps['micropp']:
 		num_nodes.update(micropp.num_nodes())
 	if include_apps['nbody']:
@@ -347,6 +360,8 @@ def generate_plots(results):
 		syntheticscatter.generate_plots(results, output_prefix_str)
 	if include_apps['slow']:
 		syntheticslow.generate_plots(results, output_prefix_str)
+	if include_apps['convergence']:
+		syntheticconvergence.generate_plots(results, output_prefix_str)
 	if include_apps['micropp']:
 		micropp.generate_plots(results, output_prefix_str)
 	if include_apps['nbody']:
