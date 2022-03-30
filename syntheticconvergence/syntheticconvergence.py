@@ -198,7 +198,7 @@ def generate_plots(results, output_prefix_str):
 
 	with PdfPages('output/%ssynthetic-convergence.pdf' % output_prefix_str) as pdf:
 		for r,times in results:
-			vranks = r['appranks']
+			vranks = int(r['appranks'])
 			if int(r['degree']) == 1:
 				dlb = 'no rebalance '
 			elif r['lewi'] == 'true' and r['drom'] == 'true':
@@ -208,15 +208,19 @@ def generate_plots(results, output_prefix_str):
 			else:
 				assert r['drom'] == 'true'
 				dlb = 'drom-only '
+			imb = r['imb']
 			policy = r['policy'] if int(r['degree']) > 1 else ''
-			label = f'vranks: {vranks} {dlb}{policy}'
+			if float(imb) > 1.0:
+				label = f'vranks: {vranks} {imb} {dlb}{policy}'
 
-			print(r['fullname'], label)
-			hybriddir = fullname_to_hybriddir(r['fullname'])
-			xx, yy = process(hybriddir)
-			#print('xx: ', xx)
-			#print('yy: ', yy)
-			plt.plot(xx, yy, label = label)
+				print(r['fullname'], label)
+				hybriddir = fullname_to_hybriddir(r['fullname'])
+				xx, yy = process(hybriddir)
+				#print('xx: ', xx)
+				#print('yy: ', yy)
+				if vranks == 2:
+					plt.xlim(0,20)
+				plt.plot(xx, yy, label = label)
 		plt.xlabel('Time (secs)')
 		plt.ylabel('Imbalance')
 		plt.legend(loc='best')
