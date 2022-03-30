@@ -75,15 +75,16 @@ def commands(num_nodes, hybrid_params):
 	for degree in range(1, max_degree+1):
 		if degree == 1:
 			policies = ['local']
+			drom_lewis = [('true', 'true')]
 		else:
 			policies = ['local', 'global']
+			drom_lewis = [('true','true'), ('true', 'false'), ('false', 'true')]
 		for policy in policies:
-			for drom in ['true']: # ['true','false'] if degree != 1
-				for lewi in ['true']: # ['true','false'] if degree != 1
-					for imb in imbalances(vranks):
-						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, imbalance=imb)
-						est_time_secs += imb * 60
-						yield cmd
+			for drom,lewi in drom_lewis:
+				for imb in imbalances(vranks):
+					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, imbalance=imb)
+					est_time_secs += imb * 60
+					yield cmd
 
 
 def get_est_time_secs():
@@ -194,128 +195,31 @@ def generate_plots(results, output_prefix_str):
 	results = [ (r,times) for (r,times) in results \
 					if r['executable'] == 'build/syntheticconvergence'
 					and int(r['iter']) == 0]
-	for r,times in results:
-		vranks = r['appranks']
-		if int(r['degree']) == 1:
-			dlb = 'no rebalance '
-		elif r['lewi'] == 'true' and r['drom'] == 'true':
-			dlb = ''
-		elif r['lewi'] == 'true' :
-			dlb = 'lewi-only '
-		else:
-			assert r['drom'] == 'true'
-			dlb = 'drom-only '
-		policy = r['policy'] if int(r['degree']) > 1 else ''
-		label = f'vranks: {vranks} {dlb}{policy}'
 
-		print(r['fullname'], label)
-		hybriddir = fullname_to_hybriddir(r['fullname'])
-		xx, yy = process(hybriddir)
-		print('xx: ', xx)
-		print('yy: ', yy)
+	with PdfPages('output/%ssynthetic-convergence.pdf' % output_prefix_str) as pdf:
+		for r,times in results:
+			vranks = r['appranks']
+			if int(r['degree']) == 1:
+				dlb = 'no rebalance '
+			elif r['lewi'] == 'true' and r['drom'] == 'true':
+				dlb = ''
+			elif r['lewi'] == 'true' :
+				dlb = 'lewi-only '
+			else:
+				assert r['drom'] == 'true'
+				dlb = 'drom-only '
+			policy = r['policy'] if int(r['degree']) > 1 else ''
+			label = f'vranks: {vranks} {dlb}{policy}'
 
-	#policies = get_values(results, 'policy')
-	#degrees = get_values(results, 'degree')
-	#apprankss = get_values(results, 'appranks')
-	#print(f'policies {policies}')
-	#print(f'degrees {degrees}')
-	#print(f'apprankss {apprankss}')
+			print(r['fullname'], label)
+			hybriddir = fullname_to_hybriddir(r['fullname'])
+			xx, yy = process(hybriddir)
+			#print('xx: ', xx)
+			#print('yy: ', yy)
+			plt.plot(xx, yy, label = label)
+		plt.xlabel('Time (secs)')
+		plt.ylabel('Imbalance')
+		plt.legend(loc='best')
+		pdf.savefig()
+		plt.close()
 
-	#all_iters = [int(x) for x in get_values(results, 'iter')]
-	#if len(all_iters) == 0:
-	#	# No synthetic results collected
-	#	return
-	#niters = 1 + max(all_iters)
-
-	#baseline_time = 5
-
-	## Generate plot as function of memory
-	#maxyy = 1
-	#for appranks in apprankss:
-	#	for policy in policies:
-	#	
-	#		with PdfPages('output/%ssynthetic-scatter-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
-
-	#			# Draw perfect balance line
-	#			min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
-	#			max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
-	#			print(min_imb, max_imb, baseline_time)
-	#			plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
-
-	#			for degree in degrees:
-	#				lewi = 'true'
-	#				drom = 'true'
-	#				if degree == 1:
-	#					lcl_policies = ['local', 'global'] # Combine both, if happen to have been run
-	#				else:
-	#					lcl_policies = [policy]
-	#				curr = [ (r,times) for (r,times) in results \
-	#							if r['appranks'] == appranks \
-	#							   and r['degree'] == degree \
-	#							   and r['lewi'] == lewi \
-	#							   and r['drom'] == drom \
-	#							   and r['policy'] in lcl_policies \
-	#							   and int(r['iter']) == niters-1]
-	#				xx = [float(r['imb']) for (r,times) in curr] # x is imbalance
-	#				yy = [times for (r,times) in curr]
-	#				xx,yy = split_by_times(xx, yy)
-	#				if len(xx) > 0:
-	#					maxyy = max(maxyy, max(yy))
-
-	#					print(f'appranks {appranks} policy {policy} degree {degree}')
-	#					print('xx =', xx)
-	#					print('yy =', yy)
-	#					plt.plot(xx, yy, label = f'degree {degree}', marker='o')
-
-	#			plt.title(f'Appranks {appranks} policy {policy}')
-	#			plt.xlabel('Imbalance')
-	#			plt.ylabel('Execution time (s)')
-	#			plt.xlim(min_imb, max_imb)
-	#			plt.ylim(0,maxyy)
-
-	#			# Order legend to put the perfect balance (which was plotted first, so has index 0) last
-	#			handles, labels = plt.gca().get_legend_handles_labels()
-	#			n = len(handles)
-	#			order = list(range(1,n)) + [0] # List of indices according to original order
-	#			plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], loc='best')
-
-	#			pdf.savefig()
-	#			plt.close()
-
-#	# Generate convergence plot
-#	lewi = 'true'
-#	drom = 'true'
-#	for policy in policies:
-#		print('syntheticscatter convergence for ', policy)
-#		with PdfPages('output/%synthetic-scatter-convergence-%s.pdf' % (output_prefix_str, policy)) as pdf:
-#
-#			#            appranks    degree    imb
-#			toplot = [   (2,         1,        1.0 ),
-#			             (2,         1,        2.0 ),
-#						 (2,         2,        1.0 ),
-#						 (2,         2,        2.0 ) ]
-#
-##				syntheticscatter convergence for  global
-##				[(2, 2, '1.000'), (2, 2, '1.042'), (2, 2, '1.083'), (2, 2, '1.125'), (2, 2, '1.167'), (2, 2, '1.208'), (2, 2, '1.250'), (2, 2, '1.292'), (2, 2, '1.333'), (2, 2, '1.375'), (2, 2, '1.417'), (2, 2, '1.458'), (2, 2, '1.500'), (2, 2, '1.542'), (2, 2, '1.583'), (2, 2, '1.625'), (2, 2, '1.667'), (2, 2, '1.708'), (2, 2, '1.750'), (2, 2, '1.792'), (2, 2, '1.833'), (2, 2, '1.875'), (2, 2, '1.917'), (2, 2, '1.958')]
-##				syntheticscatter convergence for  local
-##				[(2, 1, '1.000'), (2, 1, '1.042'), (2, 1, '1.083'), (2, 1, '1.125'), (2, 1, '1.167'), (2, 1, '1.208'), (2, 1, '1.250'), (2, 1, '1.292'), (2, 1, '1.333'), (2, 1, '1.375'), (2, 1, '1.417'), (2, 1, '1.458'), (2, 1, '1.500'), (2, 1, '1.542'), (2, 1, '1.583'), (2, 1, '1.625'), (2, 1, '1.667'), (2, 1, '1.708'), (2, 1, '1.750'), (2, 1, '1.792'), (2, 1, '1.833'), (2, 1, '1.875'), (2, 1, '1.917'), (2, 1, '1.958'), (2, 2, '1.000'), (2, 2, '1.042'), (2, 2, '1.083'), (2, 2, '1.125'), (2, 2, '1.167'), (2, 2, '1.208'), (2, 2, '1.250'), (2, 2, '1.292'), (2, 2, '1.333'), (2, 2, '1.375'), (2, 2, '1.417'), (2, 2, '1.458'), (2, 2, '1.500'), (2, 2, '1.542'), (2, 2, '1.583'), (2, 2, '1.625'), (2, 2, '1.667'), (2, 2, '1.708'), (2, 2, '1.750'), (2, 2, '1.792'), (2, 2, '1.833'), (2, 2, '1.875'), (2, 2, '1.917'), (2, 2, '1.958')]
-##	
-#			curr = [ (r,times) for (r,times) in results \
-#						if r['lewi'] == lewi \
-#						and r['drom'] == drom \
-#						and r['policy'] in allowed_policies(r['degree']) ]
-#			
-#			for (appranks, degree, imb) in toplot:
-#				curr2 = [ (r,times) for (r,times) in curr \
-#							if int(r['appranks']) == appranks \
-#							and int(r['degree']) == degree \
-#							and int(r['imb']) == imb ]
-#				max_iter = max([ int(r['iter']) for (r,times) in curr2])
-#				xx = []
-#				yy = []
-#				for it in range(0,
-#
-#			allcharts = set([ (r['appranks'], r['degree'], r['imb']) for (r,times) in curr])
-#			print(sorted(allcharts))
-
-	
