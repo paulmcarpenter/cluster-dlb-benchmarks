@@ -141,6 +141,7 @@ def generate_plots(results, output_prefix_str):
 		lewi = 'true'
 		drom = 'true'
 		groups = [(4, 'local'), (4, 'global'), (8, 'local'), (8, 'global'), (16, 'local'), (16, 'global')]
+		ind = None
 		for k,degree in enumerate(degrees):
 			avgs = []
 			stdevs = []
@@ -169,10 +170,11 @@ def generate_plots(results, output_prefix_str):
 			ind = np.arange(len(avgs))
 			width = 0.1
 			plt.bar(ind + k * width, avgs, width, yerr=stdev, label='degree %d' % degree)
-		plt.xticks(ind + 2*width, ['%d %s' % g for g in groups])
-		plt.legend(loc='best')
-		pdf.savefig()
-		plt.close()
+		if not ind is None:
+			plt.xticks(ind + 2*width, ['%d %s' % g for g in groups])
+			plt.legend(loc='best')
+			pdf.savefig()
+			plt.close()
 	sys.exit(1)
 
 
