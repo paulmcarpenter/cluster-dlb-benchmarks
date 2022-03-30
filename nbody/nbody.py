@@ -137,7 +137,7 @@ def generate_plots(results, output_prefix_str):
 								plt.close()
 	
 	# Generate barcharts
-	with PdfPages('output/%smicropp-barcharts.pdf' % output_prefix_str) as pdf:
+	with PdfPages('output/%snbody-barcharts.pdf' % output_prefix_str) as pdf:
 		lewi = 'true'
 		drom = 'true'
 		groups = [(4, 'local'), (4, 'global'), (8, 'local'), (8, 'global'), (16, 'local'), (16, 'global')]
