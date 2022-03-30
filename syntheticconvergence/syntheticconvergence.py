@@ -196,34 +196,66 @@ def generate_plots(results, output_prefix_str):
 					if r['executable'] == 'build/syntheticconvergence'
 					and int(r['iter']) == 0]
 
-	with PdfPages('output/%ssynthetic-convergence.pdf' % output_prefix_str) as pdf:
-		for r,times in results:
-			vranks = int(r['appranks'])
-			if int(r['degree']) == 1:
-				dlb = 'no rebalance '
-			elif r['lewi'] == 'true' and r['drom'] == 'true':
-				dlb = ''
-			elif r['lewi'] == 'true' :
-				dlb = 'lewi-only '
-			else:
-				assert r['drom'] == 'true'
-				dlb = 'drom-only '
-			imb = r['imb']
-			policy = r['policy'] if int(r['degree']) > 1 else ''
-			if float(imb) > 1.0:
-				label = f'vranks: {vranks} {imb} {dlb}{policy}'
+	imbalances = get_values(results, 'imb')
+	apprankss = get_values(results, 'appranks')
+	print(f'imbalances {imbalances}')
+	print(f'appranks {apprankss}')
 
-				print(r['fullname'], label)
-				hybriddir = fullname_to_hybriddir(r['fullname'])
-				xx, yy = process(hybriddir)
-				#print('xx: ', xx)
-				#print('yy: ', yy)
-				if vranks == 2:
-					plt.xlim(0,20)
-				plt.plot(xx, yy, label = label)
-		plt.xlabel('Time (secs)')
-		plt.ylabel('Imbalance')
-		plt.legend(loc='best')
-		pdf.savefig()
-		plt.close()
+	for appranks in apprankss:
+		for imbalance in imbalances:
+			curr = [(r,times) for r,times in results \
+						if r['appranks'] == appranks \
+						and r['imb'] == imbalance ]
+			lcurr = len(curr)
+
+			print(f'appranks {appranks} imb {imbalance}: len {lcurr}')
+			if float(imbalance) > 1.0 and len(curr) > 0:
+				with PdfPages('output/%ssynthetic-convergence-%s-%s.pdf' % (output_prefix_str,appranks, imbalance)) as pdf:
+					for r,times in results:
+						if r['appranks'] == appranks and r['imb'] == imbalance:
+							vranks = int(appranks)
+							if int(r['degree']) == 1:
+								dlb = 'no rebalance '
+								linestyle = '-'
+								linewidth = 1.5
+							elif r['lewi'] == 'true' and r['drom'] == 'true':
+								dlb = ''
+								linestyle = '-'
+								linewidth = 2.0
+							elif r['lewi'] == 'true' :
+								dlb = 'lewi-only '
+								linestyle = '--'
+								linewidth = 0.7
+							else:
+								assert r['drom'] == 'true'
+								dlb = 'drom-only '
+								linestyle = '-.'
+								linewidth = 1.0
+							imb = r['imb']
+							policy = r['policy'] if int(r['degree']) > 1 else ''
+							if int(r['degree']) == 1:
+								color = '#1f77b4'
+							elif policy == 'local':
+								color = '#ff7f0e'
+							else:
+								assert policy == 'global'
+								color = '#2ca02c'
+							label = f'vranks: {dlb}{policy}'
+
+							print(r['fullname'], label)
+							hybriddir = fullname_to_hybriddir(r['fullname'])
+							xx, yy = process(hybriddir)
+							#print('xx: ', xx)
+							#print('yy: ', yy)
+							plt.plot(xx, yy, label = label, linestyle = linestyle, linewidth = linewidth, color=color)
+
+					if int(appranks) == 2:
+						plt.xlim(0,20)
+
+
+					plt.xlabel('Time (secs)')
+					plt.ylabel('Imbalance')
+					plt.legend(loc='best')
+					pdf.savefig()
+					plt.close()
 
