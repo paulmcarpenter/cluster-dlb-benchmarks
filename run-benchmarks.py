@@ -180,7 +180,7 @@ def submit_job_script(job_script_name):
 def get_from_command(regex, desc, command, fullname):
 	m = re.search(regex, command)
 	if not m:
-		print('%s not defined in the command for %s', desc, fullname)
+		print('%s not defined in the command for %s' % (desc, fullname))
 		sys.exit(1)
 	return m.group(1)
 
