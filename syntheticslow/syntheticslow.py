@@ -155,7 +155,9 @@ def generate_plots(results, output_prefix_str):
 						xx = [float(r['imb']) for (r,times) in curr] # x is imbalance
 						yy = [times for (r,times) in curr]
 							
-						xx,yy = split_by_times(xx, yy)
+						yy = [average(times) for times in yy] # To average each datapoint
+						# xx,yy = split_by_times(xx, yy) # To keep all datapoints
+
 						if len(xx) > 0:
 
 							print(filename)
