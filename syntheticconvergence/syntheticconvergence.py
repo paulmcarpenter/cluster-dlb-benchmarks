@@ -211,6 +211,7 @@ def generate_plots(results, output_prefix_str):
 			print(f'appranks {appranks} imb {imbalance}: len {lcurr}')
 			if float(imbalance) > 1.0 and len(curr) > 0:
 				with PdfPages('output/%ssynthetic-convergence-%s-%s.pdf' % (output_prefix_str,appranks, imbalance)) as pdf:
+					plt.figure(figsize=(8,6))
 					for r,times in results:
 						if r['appranks'] == appranks and r['imb'] == imbalance:
 							vranks = int(appranks)
@@ -246,7 +247,8 @@ def generate_plots(results, output_prefix_str):
 							hybriddir = fullname_to_hybriddir(r['fullname'])
 							xx, yy = process(hybriddir)
 							#print('xx: ', xx)
-							#print('yy: ', yy)
+							print('label', label)
+							print('yy: ', yy)
 							plt.plot(xx, yy, label = label, linestyle = linestyle, linewidth = linewidth, color=color)
 
 					if int(appranks) == 2:
