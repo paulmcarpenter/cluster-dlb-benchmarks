@@ -206,13 +206,19 @@ def generate_plots(results, output_prefix_str):
 			showdegree = True
 			if appranks == 2:
 				showdegree = False
+				degrees = [1, 2]
+			elif appranks == 4:
+				showdegree = False
+				degrees = [1, 4]
+			else:
+				degrees = sorted(set([int(r['degree']) for r,times in curr]))
 
 			print(f'appranks {appranks} imb {imbalance}: len {lcurr}')
 			if float(imbalance) > 1.0 and len(curr) > 0:
 				with PdfPages('output/%ssynthetic-convergence-%s-%s.pdf' % (output_prefix_str,appranks, imbalance)) as pdf:
 					plt.figure(figsize=(8,6))
 					for r,times in results:
-						if r['appranks'] == appranks and r['imb'] == imbalance:
+						if r['appranks'] == appranks and r['imb'] == imbalance and int(r['degree']) in degrees:
 							vranks = int(appranks)
 							degree = int(r['degree'])
 							if degree == 1:
