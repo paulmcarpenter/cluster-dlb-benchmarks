@@ -131,9 +131,7 @@ def busy_generator(hybriddir, extrank):
 
 
 def process(hybriddir):
-	print(f'hybriddir {hybriddir}')
 	mapfiles = [filename for filename in os.listdir(hybriddir) if filename.startswith('map')]
-	print(mapfiles)
 	
 	extranks = []
 	extrank_to_node = {}
@@ -151,10 +149,8 @@ def process(hybriddir):
 			extranks.append(extrank)
 			extrank_to_node[extrank] = nodeNum
 			nodes.add(nodeNum)
-	#print(extrank_to_node)
 	nodes = list(nodes)
-	#print('nodes:', nodes)
-
+	
 	gens = [ busy_generator(hybriddir, extrank) for extrank in extranks ]
 
 	curr_time = 0.0
@@ -173,7 +169,6 @@ def process(hybriddir):
 				xx.append(curr_time)
 				yy.append(imbalance)
 				
-			#print(work_on_node)
 			curr_time += 0.5
 		except StopIteration:
 			break
@@ -185,7 +180,6 @@ def fullname_to_hybriddir(txtfilename):
 	if not m:
 		print(f'Bad convergence filename {txtfilename}')
 		sys.exit(1)
-	print(m.group(1))
 	return m.group(1) + '.hybrid'
 
 
@@ -198,8 +192,8 @@ def generate_plots(results, output_prefix_str):
 
 	imbalances = get_values(results, 'imb')
 	apprankss = get_values(results, 'appranks')
-	print(f'imbalances {imbalances}')
-	print(f'appranks {apprankss}')
+	#print(f'imbalances {imbalances}')
+	#print(f'appranks {apprankss}')
 
 	for appranks in apprankss:
 		for imbalance in imbalances:
@@ -208,6 +202,10 @@ def generate_plots(results, output_prefix_str):
 						and r['imb'] == imbalance ]
 			lcurr = len(curr)
 
+			showdegree = True
+			if appranks == 2:
+				showdegree = False
+
 			print(f'appranks {appranks} imb {imbalance}: len {lcurr}')
 			if float(imbalance) > 1.0 and len(curr) > 0:
 				with PdfPages('output/%ssynthetic-convergence-%s-%s.pdf' % (output_prefix_str,appranks, imbalance)) as pdf:
@@ -215,7 +213,8 @@ def generate_plots(results, output_prefix_str):
 					for r,times in results:
 						if r['appranks'] == appranks and r['imb'] == imbalance:
 							vranks = int(appranks)
-							if int(r['degree']) == 1:
+							degree = int(r['degree'])
+							if degree == 1:
 								dlb = 'no rebalance '
 								linestyle = '-'
 								linewidth = 1.5
@@ -241,14 +240,16 @@ def generate_plots(results, output_prefix_str):
 							else:
 								assert policy == 'global'
 								color = '#2ca02c'
-							label = f'vranks: {dlb}{policy}'
+							label = f'{dlb}{policy}'
+							if showdegree:
+								label = label + f' deg {degree}'
 
-							print(r['fullname'], label)
 							hybriddir = fullname_to_hybriddir(r['fullname'])
 							xx, yy = process(hybriddir)
-							#print('xx: ', xx)
-							print('label', label)
-							print('yy: ', yy)
+
+							avg_y = average(yy)
+							print(r['fullname'], label, 'avg: %.2f' % avg_y)
+
 							plt.plot(xx, yy, label = label, linestyle = linestyle, linewidth = linewidth, color=color)
 
 					if int(appranks) == 2:
