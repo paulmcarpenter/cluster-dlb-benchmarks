@@ -150,6 +150,7 @@ def process(hybriddir):
 			extrank_to_node[extrank] = nodeNum
 			nodes.add(nodeNum)
 	nodes = list(nodes)
+	extranks = sorted(extranks)
 	
 	gens = [ busy_generator(hybriddir, extrank) for extrank in extranks ]
 
