@@ -8,6 +8,7 @@ import getopt
 import re
 import time
 import subprocess
+import copy
 from synthetic import unbalanced_sweep
 from syntheticscatter import syntheticscatter
 from syntheticslow import syntheticslow
@@ -242,8 +243,20 @@ def get_all_results():
 	
 def averaged_results(results):
 	times = {}
+	seen_excl_fullname = {}
 	for r,time in results:
-		key = tuple(sorted(r.items()))
+
+		# Check if already seen with perhaps different fullname (for averaging of results)
+		r2 = copy.deepcopy(r)
+		del r2['fullname']
+		key_seen = tuple(sorted(r2.items()))
+		if key_seen in seen_excl_fullname:
+			r2['fullname'] = seen_excl_fullname[key_seen]
+		else:
+			r2['fullname'] = r['fullname']
+			seen_excl_fullname[key_seen] = r['fullname']
+
+		key = tuple(sorted(r2.items()))
 		if not key in times:
 			times[key] = []
 		times[key].append(time)
