@@ -155,20 +155,18 @@ def run_single_command(cmd, benchmark=None, command=None, keep_output=True, num_
 	if not dry_run:
 		s = subprocess.run(full_cmd, shell=True)
 	
-def create_job_script(num_nodes, hours, mins):
+def create_job_script(num_nodes, hours, mins, benchmark):
 	if qos == 'debug' and num_nodes > 4:
 		print('Cannot run >4 nodes on debug queue')
 		return None
-	job_name = unique_output_name(job_output_dir, 'batch%d_' % num_nodes)
+	job_script_name = unique_output_name(job_output_dir, 'batch%d_' % num_nodes, '.job')
 	t = Template(job_script_template)
-	job_script_name = job_name + '.job'
-	print(job_script_name)
+	job_name = job_script_name[:-4]
+	#print(job_name, job_script_name)
 	args_list = []
 	if not verbose:
 		args_list.append('quiet')
-	for a,d in include_apps.items():
-		if d:
-			args_list.append('--' + a)
+	args_list.append('--' + benchmark)
 	if dry_run:
 		args_list.append('--dry-run')
 	if extrae:
@@ -310,39 +308,39 @@ def make():
 		ok = ok and nbody.make()
 	return ok
 
-def all_commands(num_nodes, hybrid_params):
-	if include_apps['synthetic']:
+def all_commands(num_nodes, hybrid_params, benchmark):
+	if benchmark == 'synthetic':
 		for cmd in unbalanced_sweep.commands(num_nodes, hybrid_params):
-			yield (cmd, 'synthetic')
-	if include_apps['scatter']:
+			yield cmd
+	if benchmark == 'scatter':
 		for cmd in syntheticscatter.commands(num_nodes, hybrid_params):
-			yield (cmd, 'scatter')
-	if include_apps['slow']:
+			yield cmd
+	if benchmark == 'slow':
 		for cmd in syntheticslow.commands(num_nodes, hybrid_params):
-			yield (cmd, 'slow')
-	if include_apps['convergence']:
+			yield cmd
+	if benchmark == 'convergence':
 		for cmd in syntheticconvergence.commands(num_nodes, hybrid_params):
-			yield (cmd, 'convergence')
-	if include_apps['micropp']:
+			yield cmd
+	if benchmark == 'micropp':
 		for cmd in micropp.commands(num_nodes, hybrid_params):
-			yield (cmd, 'micropp')
-	if include_apps['nbody']:
+			yield cmd
+	if benchmark == 'nbody':
 		for cmd in nbody.commands(num_nodes, hybrid_params):
-			yield (cmd, 'nbody')
+			yield cmd
 
-def get_est_time_secs():
+def get_est_time_secs(benchmark):
 	my_est_time_secs = 60 * 60 # start with one hour slack
-	if include_apps['synthetic']:
+	if benchmark == 'synthetic':
 		my_est_time_secs += unbalanced_sweep.get_est_time_secs()
-	if include_apps['scatter']:
+	if benchmark == 'scatter':
 		my_est_time_secs += syntheticscatter.get_est_time_secs()
-	if include_apps['slow']:
+	if benchmark == 'slow':
 		my_est_time_secs += syntheticslow.get_est_time_secs()
-	if include_apps['convergence']:
+	if benchmark == 'convergence':
 		my_est_time_secs += syntheticconvergence.get_est_time_secs()
-	if include_apps['micropp']:
+	if benchmark == 'micropp':
 		my_est_time_secs += micropp.get_est_time_secs()
-	if include_apps['nbody']:
+	if benchmark == 'nbody':
 		my_est_time_secs += nbody.get_est_time_secs()
 	return my_est_time_secs
 
@@ -522,9 +520,12 @@ def main(argv):
 		os.makedirs(job_output_dir, exist_ok=True)
 		try:
 			for num_nodes in nums_nodes:
-				for cmd, benchmark in all_commands(num_nodes, hybrid_params):
-					if filter_command(cmd):
-						run_single_command(cmd, benchmark, command, keep_output=True, num_nodes=num_nodes)
+				for benchmark in apps:
+					if include_apps[benchmark]:
+						for cmd in all_commands(num_nodes, hybrid_params, benchmark):
+							if filter_command(cmd):
+								print(cmd, benchmark, command)
+								run_single_command(cmd, benchmark, command, keep_output=True, num_nodes=num_nodes)
 		except KeyboardInterrupt:
 			print('Interrupted')
 		print_time('Finished at')
@@ -543,20 +544,26 @@ def main(argv):
 			return 1
 		for n in num_nodes:
 			if dry_run:
-				for cmd, benchmark in all_commands(n, hybrid_params):
-					if filter_command(cmd):
-						print(cmd)
-				hours, mins = decode_time_secs(get_est_time_secs())
-				print(f'Estimated time {hours} hours and {mins} mins')
+				for benchmark in apps:
+					if include_apps[benchmark]:
+						print(f'=== {benchmark} on {n} nodes ===')
+						for cmd in all_commands(n, hybrid_params, benchmark):
+							if filter_command(cmd):
+								print(cmd)
+						hours, mins = decode_time_secs(get_est_time_secs(benchmark))
+						print(f'Estimated time {hours} hours and {mins} mins')
 			else:
 				# Go through all commands to get estimated time only
-				for cmd, benchmark in all_commands(n, hybrid_params):
-					pass
-				hours, mins = decode_time_secs(get_est_time_secs())
-				print(f'{n} nodes: Estimated time {hours} hours and {mins} mins')
-				job_script_name = create_job_script(n, hours, mins)
-				if not job_script_name is None:
-					submit_job_script(job_script_name)
+				for benchmark in apps:
+					if include_apps[benchmark]:
+						for cmd in all_commands(n, hybrid_params, benchmark):
+							pass
+						hours, mins = decode_time_secs(get_est_time_secs(benchmark))
+						print(f'{benchmark} on {n} nodes: Estimated time {hours} hours and {mins} mins')
+						job_script_name = create_job_script(n, hours, mins, benchmark)
+						print(job_script_name)
+						if not job_script_name is None:
+							submit_job_script(job_script_name)
 		return 1
 	elif command == 'process':
 		os.makedirs(output_dir, exist_ok=True)
