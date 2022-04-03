@@ -66,13 +66,13 @@ def Usage():
 	print(' --extrae                Generate extrae trace')
 	print(' --local, --global       Specify allocation policy')
 	print(' --output-prefix         Prefix for filenames in output plots')
-	print(' --archived              Subfolder of archive/ with results')
+	print(' --archived <folder_name> Subfolder of archive/ with results')
 	print('Commands:')
 	print('make                     Run make')
 	print('interactive              Run interactively')
 	print('submit                   Submit jobs')
 	print('process                  Generate plots')
-	print('archive                  Archive data')
+	print('archive <folder_name>    Archive data')
 	return 1
 
 def print_time(desc):
@@ -554,7 +554,13 @@ def main(argv):
 
 	elif command == 'archive':
 		os.makedirs(archive_output_dir, exist_ok=True)
-		archive_folder = unique_output_name(archive_output_dir, 'jobs_')
+		if len(args) >= 2:
+			archive_folder = archive_output_dir + '/' + args[1]
+			if os.path.exists(archive_folder):
+				print(f'archive output folder {archive_folder} already exists')
+				return 1
+		else:
+			archive_folder = unique_output_name(archive_output_dir, 'jobs_')
 		os.mkdir(archive_folder)
 		run_single_command('mv ' + job_output_dir + '/* ' + archive_folder, command=None, keep_output=False)
 	else:
