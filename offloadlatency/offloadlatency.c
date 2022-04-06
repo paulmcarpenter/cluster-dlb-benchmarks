@@ -9,6 +9,29 @@
 #include <sys/time.h>
 #include "mpi.h"
 
+float calc_avg(float *vals, int ntasks, float start)
+{
+	float tot = 0;
+	int count = 0;
+	for(int task=(int)(ntasks*start); task<ntasks; task++)
+	{
+		tot += vals[task];
+		count ++;
+	}
+	return tot / count;
+}
+
+float calc_max(float *vals, int ntasks, float start)
+{
+	float maxval = 0;
+	for(int task=(int)(ntasks*start); task<ntasks; task++)
+	{
+		if (vals[task] > maxval) {
+			maxval = vals[task];
+		}
+	}
+	return maxval;
+}
 
 
 int main( int argc, char *argv[] )
@@ -104,25 +127,10 @@ int main( int argc, char *argv[] )
 				float secs_all = (time_very_end.tv_sec - time_very_start.tv_sec) + (time_very_end.tv_usec - time_very_start.tv_usec) / 1000000.0;
 				float actual_tasks_per_sec = ntasks / secs_all;
 
-				// Print execution time
-				float tot_latency = 0;
-				float max_latency = 0;
-				int count = 0;
-				for(int task=ntasks/2; task<ntasks; task++)
-				{
-					if (latency_time[task] > max_latency) {
-						max_latency = latency_time[task];
-					}
-					tot_latency += latency_time[task];
-					count ++;
-					// int p, t;
-					// gettimeofday(&time_end, NULL);
-					// double secs = (time_end.tv_sec - time_start.tv_sec) + (time_end.tv_usec - time_start.tv_usec) / 1000000.0;
-					// printf("# %s appranks=%d deg=%d ", appname, num_appranks, nanos6_get_num_cluster_iranks());
-					// printf(": iter=%d slow_worst=%d imb=%.3f time=%3.2f sec\n", iter, slow_is_worst_rank, imbalance, secs);
-				}
-				float avg_latency = tot_latency / count;
-				printf("Tasks/sec: %f (target %f) Average: %f ms  Max: %f ms\n", actual_tasks_per_sec, tasks_per_sec, 1000.0 * avg_latency, 1000.0 * max_latency);
+				float avg_latency_75 = calc_avg(latency_time, ntasks, 0.75);
+				float avg_latency_95 = calc_avg(latency_time, ntasks, 0.95);
+				float max_latency = calc_max(latency_time, ntasks, 0.5);
+				printf("Tasks/sec: %f (target %f) Average (75%%): %f ms Average(95%%): %f ms  Max: %f ms\n", actual_tasks_per_sec, tasks_per_sec, 1000.0 * avg_latency_75, 1000.0 * avg_latency_95, 1000.0 * max_latency);
 			}
 			tasks_per_sec /= 2.0;
 			full_speed = 0;
