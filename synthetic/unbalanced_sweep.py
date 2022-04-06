@@ -59,7 +59,7 @@ def commands(num_nodes, hybrid_params):
 			for policy in ('local', 'global'):
 				for drom in ['true']: # ['true','false'] if degree != 1
 					for lewi in ['true']: # ['true','false'] if degree != 1
-						for memsize in ['1', '1k', '10k', '100k', '1M', '10M', '20M', '40M']:
+						for memsize in ['1', '1k', '10k', '100k', '1M', '10M', '20M']:
 							cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, memsize=memsize, noflush=noflush, costs=costs, hybrid_params=hybrid_params)
 							est_time_secs += 5 * 60 # Guess!
 							yield cmd
