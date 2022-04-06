@@ -50,7 +50,7 @@ def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
 	vranks = num_nodes #* 2 # Start with fixed *2 oversubscription
 
-	for degree in list(range(1, max(6,num_nodes+1))):
+	for degree in list(range(1, min(6,num_nodes+1))):
 		for policy in ('local', 'global'):
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
