@@ -50,17 +50,19 @@ def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
 	vranks = num_nodes #* 2 # Start with fixed *2 oversubscription
 
-	for degree in list(range(1, min(6,num_nodes+1))):
-		if degree == 1:
-			policies = ['local']
-		else:
-			policies = ['local', 'global']
-		for policy in policies:
-			for drom in ['true']: # ['true','false'] if degree != 1
-				for lewi in ['true']: # ['true','false'] if degree != 1
-					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
-					est_time_secs += 6 * 60 # A guess!
-					yield cmd
+	for appranks_per_node in (1,2):
+		vranks = num_nodes * appranks_per_node
+		for degree in list(range(1, min(6,num_nodes+1))):
+			if degree == 1:
+				policies = ['local']
+			else:
+				policies = ['local', 'global']
+			for policy in policies:
+				for drom in ['true']: # ['true','false'] if degree != 1
+					for lewi in ['true']: # ['true','false'] if degree != 1
+						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
+						est_time_secs += 6 * 60 # A guess!
+						yield cmd
 
 def get_est_time_secs():
 	global est_time_secs
