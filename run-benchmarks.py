@@ -183,6 +183,7 @@ def get_from_command(regex, desc, command, fullname):
 	m = re.search(regex, command)
 	if not m:
 		print('%s not defined in the command for %s' % (desc, fullname))
+		print(f'Command is {command}')
 		sys.exit(1)
 	return m.group(1)
 
@@ -191,14 +192,19 @@ def get_from_command(regex, desc, command, fullname):
 def get_file_results(fullname, results):
 	re_result = re.compile('# ([-a-zA-Z0-9./_]*) appranks=([1-9][0-9]*) deg=([1-9][0-9]*) (.*) time=([0-9.]*) (sec|ms)')
 	re_trace = re.compile('mv TRACE.mpits (.*)')
+	re_experiment = re.compile('Experiment vranks: ([1-9][0-9]*) nodes: ([1-9][0-9]*) deg: ([1-9][0-9]*)')
 	with open(fullname) as fp:
 		keys = set()
 		command = fp.readline()
 		drom = get_from_command('dlb.enable_drom=(true|false)', 'dlb.enable_drom', command, fullname)
 		lewi = get_from_command('dlb.enable_lewi=(true|false)', 'dlb.enable_lewi', command, fullname)
 		policy = get_from_command(' --(local|global)', 'policy', command, fullname)
+		numnodes = None
 
 		for line in fp.readlines():
+			m = re_experiment.match(line)
+			if m:
+				numnodes = int(m.group(1))
 			m = re_result.match(line)
 			if m:
 				r = {}
@@ -215,9 +221,12 @@ def get_file_results(fullname, results):
 				r['drom'] = drom
 				r['policy'] = policy
 				r['fullname'] = fullname
+				assert(not numnodes is None)
+				r['numnodes'] = numnodes
 				time = float(m.group(5))
 				results.append((r,time))
-				key = f"executable: {r['executable']} appranks: {r['appranks']} degree: {r['degree']} policy: {r['policy']} lewi: {r['lewi']} drom: {r['drom']}"
+				key = f"executable: {r['executable']} numnodes: {r['numnodes']} appranks: {r['appranks']} degree: {r['degree']} policy: {r['policy']} lewi: {r['lewi']} drom: {r['drom']}"
+				print(key)
 				if not key in keys:
 					print(fullname + ':', key)
 				keys.add(key)
