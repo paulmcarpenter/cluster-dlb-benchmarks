@@ -51,7 +51,11 @@ def commands(num_nodes, hybrid_params):
 	vranks = num_nodes #* 2 # Start with fixed *2 oversubscription
 
 	for degree in list(range(1, min(6,num_nodes+1))):
-		for policy in ('local', 'global'):
+		if degree == 1:
+			policies = ['local']
+		else:
+			policies = ['local', 'global']
+		for policy in policies:
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
 					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
@@ -108,7 +112,7 @@ def generate_plots(results, output_prefix_str):
 									   and r['degree'] == degree \
 									   and r['lewi'] == lewi \
 									   and r['drom'] == drom \
-									   and r['policy'] == policy]
+									   and (r['policy'] == policy or int(degree) == 1) ]
 						if len(res) > 0:
 							nsteps = 1+max([int(r['step']) for (r,times) in results])
 
@@ -151,7 +155,7 @@ def generate_plots(results, output_prefix_str):
 							   and r['degree'] == degree \
 							   and r['lewi'] == lewi \
 							   and r['drom'] == drom \
-							   and r['policy'] == policy \
+							   and (r['policy'] == policy or int(degree) == 1)\
 							   and int(r['step']) >= nsteps*0.67  ] 
 				vals = []
 				for step in range(0,nsteps):
