@@ -524,7 +524,9 @@ def main(argv):
 					if include_apps[benchmark]:
 						for cmd in all_commands(num_nodes, hybrid_params, benchmark):
 							if filter_command(cmd):
-								print(cmd, benchmark, command)
+								#print(cmd, benchmark, command)
+								if not dry_run:
+									print_time('Current time')
 								run_single_command(cmd, benchmark, command, keep_output=True, num_nodes=num_nodes)
 		except KeyboardInterrupt:
 			print('Interrupted')
