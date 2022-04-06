@@ -13,7 +13,6 @@
 
 int main( int argc, char *argv[] )
 {
-	int comm;							  // Application's communicator
 	int id, num_appranks;				  // Application (virtual) rank and number of ranks
 
 	if (argc > 1) {
@@ -22,19 +21,6 @@ int main( int argc, char *argv[] )
 		return -1;
 	}
 
-	// Initialize MPI:
-	// MPI_Init(&argc, &argv);	 // Cluster+DLB: do not call MPI_Init
-
-	comm = nanos6_app_communicator();  // Cluster+DLB: use application communicator
-
-	// Get my (virtual) rank
-	MPI_Comm_rank(comm, &id);
-	// Get the total number of appranks
-	MPI_Comm_size(comm, &num_appranks);
-
-	// in choosing the best or worst rank, we assume the number of application ranks
-	// equals the number of nodes
-	assert(nanos6_get_num_cluster_physical_nodes() == num_appranks);
 
 	int task;							  // Counters
 	int max_ntasks = 16384;
@@ -47,10 +33,12 @@ int main( int argc, char *argv[] )
 	int runs = 1;
 	int niter = 1;
 
-	if (id == 0) {
+	int offload;
+	for(offload = 0; offload <= 1; offload++) {
+		printf("Offload: %s\n", offload ? "yes" : "no");
 		int full_speed = 1;
-		float tasks_per_sec = 1.0;
-		while (tasks_per_sec < 100000.0) {
+		float tasks_per_sec = 100000.0;
+		while (tasks_per_sec >= 50.0) {
 			double period = 1.0 / tasks_per_sec;
 			int ntasks = (int)(tasks_per_sec * 2);
 			if (ntasks > max_ntasks) {
@@ -61,7 +49,7 @@ int main( int argc, char *argv[] )
 				ntasks = max_ntasks;
 			}
 
-			printf("ntasks: %d\n", ntasks);
+			// printf("ntasks: %d\n", ntasks);
 
 			// Time per task as struct timespec
 			// struct timespec ts;
@@ -81,13 +69,14 @@ int main( int argc, char *argv[] )
 				// Create independent tasks
 				struct timeval time_very_start;
 				gettimeofday(&time_very_start, NULL);
+				int node = offload;
 				for(int task=0; task<ntasks; task++)
 				{
 					gettimeofday(&time_start[task], NULL);
 					char *c = &mem[task * bytes_per_task];
-					#pragma oss task inout(c[0;bytes_per_task])  node(1)
+					#pragma oss task inout(c[0;bytes_per_task])  node(node)
 					{
-						assert(nanos6_get_cluster_node_id() == 1);
+						assert(nanos6_get_cluster_node_id() == node);
 					}
 					#pragma oss task in(c[0;bytes_per_task]) out(latency_time[task]) node(nanos6_cluster_no_offload)
 					{
@@ -115,9 +104,6 @@ int main( int argc, char *argv[] )
 				float secs_all = (time_very_end.tv_sec - time_very_start.tv_sec) + (time_very_end.tv_usec - time_very_start.tv_usec) / 1000000.0;
 				float actual_tasks_per_sec = ntasks / secs_all;
 
-				// Barrier
-				// MPI_Barrier(comm);
-
 				// Print execution time
 				float tot_latency = 0;
 				float max_latency = 0;
@@ -136,9 +122,10 @@ int main( int argc, char *argv[] )
 					// printf(": iter=%d slow_worst=%d imb=%.3f time=%3.2f sec\n", iter, slow_is_worst_rank, imbalance, secs);
 				}
 				float avg_latency = tot_latency / count;
-				printf("Tasks/sec: %f (target %f) Average: %f Max: %f\n", actual_tasks_per_sec, tasks_per_sec, avg_latency, max_latency);
+				printf("Tasks/sec: %f (target %f) Average: %f ms  Max: %f ms\n", actual_tasks_per_sec, tasks_per_sec, 1000.0 * avg_latency, 1000.0 * max_latency);
 			}
-			tasks_per_sec *= 2.0;
+			tasks_per_sec /= 2.0;
+			full_speed = 0;
 		}
 	}
 
