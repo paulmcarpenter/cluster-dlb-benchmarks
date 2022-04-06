@@ -16,11 +16,11 @@ except ImportError:
 # Template to create the command to run the benchmark
 command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --monitor 20',
 					         '--config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
-				             'build/mpi-load-balance 10 2400 10'])
+				             'build/mpi-load-balance 10 $ngp 10'])
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
-	return [2,4,8]
+	return [2,4,8,16,32]
 
 # Check whether the binary is missing
 def make():
@@ -50,6 +50,8 @@ def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
 	vranks = num_nodes #* 2 # Start with fixed *2 oversubscription
 
+	# Weak scaling
+	ngp = num_nodes * 2400
 	for appranks_per_node in (1,2):
 		vranks = num_nodes * appranks_per_node
 		for degree in list(range(1, min(6,num_nodes+1))):
@@ -60,8 +62,8 @@ def commands(num_nodes, hybrid_params):
 			for policy in policies:
 				for drom in ['true']: # ['true','false'] if degree != 1
 					for lewi in ['true']: # ['true','false'] if degree != 1
-						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
-						est_time_secs += 6 * 60 # A guess!
+						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, ngp=ngp)
+						est_time_secs += 6 * 60 # 6 minutes: a guess!
 						yield cmd
 
 def get_est_time_secs():
