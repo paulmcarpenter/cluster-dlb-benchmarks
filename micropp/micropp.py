@@ -155,23 +155,27 @@ def generate_plots(results, output_prefix_str):
 			lewi = 'true'
 			drom = 'true'
 			ind = None
+			width = 0.15
 
 			# All xticks: x positions
 			xticksx = []
 			# All xticks: labels
 			xtickslabels = []
 
-			for j, appranks_per_node in enumerate([1,2]):
-				xcurr = 6.5 * j
-				# Centre for each number of nodes
-				xnodes = np.arange(len(numnodess)) + xcurr
-				xticksx.extend(xnodes)
-				xtickslabels.extend(numnodess)
+			for kd, degree in enumerate((1,2,3)):
 
-				for kd, degree in enumerate(degrees):
+				xx = []
+				avgs = []
+				stdevs = []
 
-					avgs = []
-					stdevs = []
+				for j, appranks_per_node in enumerate([1,2]):
+					xcurr = 6.5 * j
+					# Centre for each number of nodes
+					xnodes = np.arange(len(numnodess)) + xcurr
+					xx.extend(xnodes + (kd-1)*width*1.5)
+					xticksx.extend(xnodes)
+					xtickslabels.extend(numnodess)
+
 					for kn, numnodes in enumerate(numnodess):
 						numappranks = appranks_per_node * numnodes
 						print(f'{policy} appranks: {numappranks} vranks: {numnodes} {degree}')
@@ -201,15 +205,24 @@ def generate_plots(results, output_prefix_str):
 						avgs.append(avg / 1000.0)  # Convert ms to seconds
 						stdevs.append(stdev / 1000.0)
 
-					width = 0.1
-					xx = xnodes + kd*width*1.5
-					print(f'Plot {xx} {avgs} {stdevs}')
-					plt.bar(xx, avgs, width, yerr=stdevs, label='degree %d' % degree)
-					xmid = average(xnodes)
-					plt.text(xmid, -4, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
+					if kd == 0:
+						xmid = average(xnodes)
+						plt.text(xmid, -4, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
+
+				print(f'Plot {xx} {avgs} {stdevs}')
+				print(len(xx), len(avgs), len(stdevs))
+				if degree == 1:
+					legend = 'MPI'
+				elif degree == 2:
+					legend = 'MPI + Offload to 1 node'
+				elif degree == 3:
+					legend = 'MPI + Offload to 2 nodes'
+				else:
+					legend = f'degree {degree}'
+				plt.bar(xx, avgs, width, yerr=stdevs, label=legend)
 
 			plt.xticks(xticksx, xtickslabels)
-			#plt.legend(loc='best')
+			plt.legend(loc='lower right')
 			plt.ylabel('Execution time per timestep (secs)')
 			pdf.savefig()
 			plt.close()
