@@ -149,16 +149,24 @@ def generate_plots(results, output_prefix_str):
 
 	# Generate barcharts
 	for policy in ['local', 'global']:
-		for appranks_per_node in [1,2]:
-			filename = f'output/{output_prefix_str}micropp-barcharts-{appranks_per_node}-{policy}.pdf'
-			print(f'Generating {filename}')
-			with PdfPages(filename) as pdf:
-				lewi = 'true'
-				drom = 'true'
-				ind = None
+		filename = f'output/{output_prefix_str}micropp-barcharts-{policy}.pdf'
+		print(f'Generating {filename}')
+		with PdfPages(filename) as pdf:
+			lewi = 'true'
+			drom = 'true'
+			ind = None
 
+			# All xticks: x positions
+			xticksx = []
+			# All xticks: labels
+			xtickslabels = []
+
+			for j, appranks_per_node in enumerate([1,2]):
+				xcurr = 6.5 * j
 				# Centre for each number of nodes
-				xnodes = np.arange(len(numnodess))
+				xnodes = np.arange(len(numnodess)) + xcurr
+				xticksx.extend(xnodes)
+				xtickslabels.extend(numnodess)
 				xpos = 0
 
 				for numnodes in numnodess:
@@ -197,14 +205,14 @@ def generate_plots(results, output_prefix_str):
 						ind = np.arange(len(avgs))
 						width = 0.1
 						plt.bar(ind + xpos, avgs, width, yerr=stdevs, label='degree %d' % degree)
-						plt.xticks(xnodes, numnodess)
 						xpos += 0.05 # For degree
 					xpos += 0.2 # For num_nodes
 
-				#plt.legend(loc='best')
-				plt.ylabel('Execution time per timestep (secs)')
-				pdf.savefig()
-				plt.close()
+			plt.xticks(xticksx, xtickslabels)
+			#plt.legend(loc='best')
+			plt.ylabel('Execution time per timestep (secs)')
+			pdf.savefig()
+			plt.close()
 
 	
 
