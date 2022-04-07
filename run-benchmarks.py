@@ -204,7 +204,7 @@ def get_file_results(fullname, results):
 		for line in fp.readlines():
 			m = re_experiment.match(line)
 			if m:
-				numnodes = int(m.group(1))
+				numnodes = int(m.group(2))
 			m = re_result.match(line)
 			if m:
 				r = {}
@@ -224,6 +224,7 @@ def get_file_results(fullname, results):
 				assert(not numnodes is None)
 				r['numnodes'] = numnodes
 				time = float(m.group(5))
+				#print(f"{fullname} numnodes: {numnodes} appranks: {r['appranks']}")
 				results.append((r,time))
 				key = f"executable: {r['executable']} numnodes: {r['numnodes']} appranks: {r['appranks']} degree: {r['degree']} policy: {r['policy']} lewi: {r['lewi']} drom: {r['drom']}"
 				#print(key)

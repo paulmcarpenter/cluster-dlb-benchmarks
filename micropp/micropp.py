@@ -167,14 +167,14 @@ def generate_plots(results, output_prefix_str):
 				xnodes = np.arange(len(numnodess)) + xcurr
 				xticksx.extend(xnodes)
 				xtickslabels.extend(numnodess)
-				xpos = 0
 
-				for numnodes in numnodess:
-					for k,degree in enumerate(degrees):
+				for kd, degree in enumerate(degrees):
+
+					avgs = []
+					stdevs = []
+					for kn, numnodes in enumerate(numnodess):
 						numappranks = appranks_per_node * numnodes
-						print(f'{policy} {appranks_per_node} {numnodes} {degree}')
-						avgs = []
-						stdevs = []
+						print(f'{policy} appranks: {numappranks} vranks: {numnodes} {degree}')
 						curr1 = [ (r,times) for (r,times) in results \
 									if r['appranks'] == numappranks \
 									   and r['degree'] == degree \
@@ -183,6 +183,8 @@ def generate_plots(results, output_prefix_str):
 									   and r['numnodes'] == numnodes \
 									   and (r['policy'] == policy or int(degree) == 1) ]
 
+						avg = 0
+						stdev = 0
 						if len(curr1) > 0:
 							nsteps = 1+max([int(r['step']) for (r,times) in curr1])
 							curr = [ (r,times) for (r,times) in curr1 \
@@ -196,17 +198,15 @@ def generate_plots(results, output_prefix_str):
 							if len(vals) > 0:
 								avg = average(vals)
 								stdev = np.std(vals)
-							else:
-								avg = 0
-								stdev = 0
-							avgs.append(avg / 1000.0)  # Convert ms to seconds
-							stdevs.append(stdev / 1000.0)
-							print(f'Averages {avgs}')
-						ind = np.arange(len(avgs))
-						width = 0.1
-						plt.bar(ind + xpos, avgs, width, yerr=stdevs, label='degree %d' % degree)
-						xpos += 0.05 # For degree
-					xpos += 0.2 # For num_nodes
+						avgs.append(avg / 1000.0)  # Convert ms to seconds
+						stdevs.append(stdev / 1000.0)
+
+					width = 0.1
+					xx = xnodes + kd*width*1.5
+					print(f'Plot {xx} {avgs} {stdevs}')
+					plt.bar(xx, avgs, width, yerr=stdevs, label='degree %d' % degree)
+					xmid = average(xnodes)
+					plt.text(xmid, -4, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
 
 			plt.xticks(xticksx, xtickslabels)
 			#plt.legend(loc='best')
