@@ -10,6 +10,7 @@ try:
 	import numpy as np
 	from matplotlib.backends.backend_pdf import PdfPages
 	import matplotlib.pyplot as plt
+	import matplotlib.colors
 except ImportError:
 	pass
 
@@ -101,60 +102,60 @@ def generate_plots(results, output_prefix_str):
 		return
 	niters = 1 + max(all_iters)
 
-	baseline_time = 5
+	imb_max = 4
+	imb_delta = 0.1
+	apprank_max = 32
 
-	# Generate plot as function of memory
-	maxyy = 1
-	for appranks in apprankss:
-		for policy in policies:
-		
-			with PdfPages('output/%ssynthetic-bestdegree-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
+	y, x = np.mgrid[slice(0.5, 32.5,1), slice(1-imb_delta/2,imb_max-imb_delta/2,imb_delta)]
+	z = 0*x + np.NaN
 
-				# Draw perfect balance line
-				min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
-				max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
-				print(min_imb, max_imb, baseline_time)
-				plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
-
+	max_bestdeg = 0
+	with PdfPages('output/%sbestdegree.pdf' % (output_prefix_str)) as pdf:
+		for appranks in apprankss:
+			lewi = 'true'
+			drom = 'true'
+			
+			curr = [(r,times) for (r,times) in results \
+						if r['appranks'] == appranks \
+						and r['lewi'] == lewi \
+						and r['drom'] == drom \
+						and int(r['iter']) == niters-1]
+			imbs = get_values(curr, 'imb')
+			print(f'appranks {appranks} imbs {imbs}')
+			for imb in imbs:
+				curr2 = [(r,times) for (r,times) in curr if r['imb'] == imb]
+				degrees = get_values(curr2, 'degree')
+				print(f'imb: {imb} degs: {degrees}')
+				bestdeg = None
+				bestval = None
 				for degree in degrees:
-					lewi = 'true'
-					drom = 'true'
-					if degree == 1:
-						lcl_policies = ['local', 'global'] # Combine both, if happen to have been run
-					else:
-						lcl_policies = [policy]
-					curr = [ (r,times) for (r,times) in results \
-								if r['appranks'] == appranks \
-								   and r['degree'] == degree \
-								   and r['lewi'] == lewi \
-								   and r['drom'] == drom \
-								   and r['policy'] in lcl_policies \
-								   and int(r['iter']) == niters-1]
-					xx = [float(r['imb']) for (r,times) in curr] # x is imbalance
-					yy = [times for (r,times) in curr]
-					xx,yy = split_by_times(xx, yy)
-					if len(xx) > 0:
-						maxyy = max(maxyy, max(yy))
+					curr3 = [(r,times) for (r,times) in curr2 if r['degree'] == degree]
+					ys = [times for (r,times) in curr3]
+					yval = average(ys[0])
+					if bestval is None or yval < bestval:
+						bestval = yval
+						bestdeg = degree
+				print(f'appranks {appranks} imb {imb} bestdeg {bestdeg}')
+				max_bestdeg = max(max_bestdeg, bestdeg)
 
-						print(f'appranks {appranks} policy {policy} degree {degree}')
-						print('xx =', xx)
-						print('yy =', yy)
-						plt.plot(xx, yy, label = f'degree {degree}', marker='o')
+				z[appranks-1][int((float(imb)-1)/imb_delta)] = bestdeg
+				#xx.append(appranks)
+				#yy.append(imb)
+				#zz.append(bestdeg)
 
-				plt.title(f'Appranks {appranks} policy {policy}')
-				plt.xlabel('Imbalance')
-				plt.ylabel('Execution time (s)')
-				plt.xlim(min_imb, max_imb)
-				plt.ylim(0,maxyy)
+		cmap = plt.cm.get_cmap("magma", max_bestdeg)
+		im = plt.pcolormesh(x, y, z, cmap=cmap)
 
-				# Order legend to put the perfect balance (which was plotted first, so has index 0) last
-				handles, labels = plt.gca().get_legend_handles_labels()
-				n = len(handles)
-				order = list(range(1,n)) + [0] # List of indices according to original order
-				plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], loc='best')
+		norm= matplotlib.colors.BoundaryNorm(np.arange(0,max_bestdeg+1)-0.5, max_bestdeg)
+		sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+		sm.set_array([])
+		plt.colorbar(sm, ticks=np.arange(0,max_bestdeg))
 
-				pdf.savefig()
-				plt.close()
+		plt.xlabel('Imbalance')
+		plt.ylabel('Number of appranks')
+		pdf.savefig()
+		plt.close()
+
 
 
 
