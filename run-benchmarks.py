@@ -13,6 +13,7 @@ from synthetic import unbalanced_sweep
 from syntheticscatter import syntheticscatter
 from syntheticslow import syntheticslow
 from syntheticconvergence import syntheticconvergence
+from bestdegree import bestdegree
 from micropp import micropp
 from nbody import nbody
 import check_num_nodes
@@ -26,15 +27,16 @@ except ImportError:
 	canImportNumpy = False
 
 # Default parameters
-apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody', 'convergence']
-needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False, 'convergence' : True}
-include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True, 'convergence' : True}
+apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody', 'convergence', 'bestdegree']
+needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False, 'convergence' : True, 'bestdegree' : True}
+include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True, 'convergence' : True, 'bestdegree' : True}
 apps_desc = {'synthetic' : 'synthetic benchmarks',
 			'micropp' : 'micropp benchmarks',
 			'scatter' : 'synthetic scatter benchmark',
 			'slow' : 'test with slow node',
 			'nbody' : 'n-body benchmark',
-			'convergence' : 'convergence benchmark'}
+			'convergence' : 'convergence benchmark',
+			'bestdegree' : 'bestdegree benchmark'}
 
 verbose = True
 dry_run = False
@@ -312,6 +314,8 @@ def make():
 		ok = ok and syntheticslow.make()
 	if ok and include_apps['convergence']:
 		ok = ok and syntheticconvergence.make()
+	if ok and include_apps['bestdegree']:
+		ok = ok and bestdegree.make()
 	if ok and include_apps['micropp']:
 		ok = ok and micropp.make()
 	if ok and include_apps['nbody']:
@@ -331,6 +335,9 @@ def all_commands(num_nodes, hybrid_params, benchmark):
 	if benchmark == 'convergence':
 		for cmd in syntheticconvergence.commands(num_nodes, hybrid_params):
 			yield cmd
+	if benchmark == 'bestdegree':
+		for cmd in bestdegree.commands(num_nodes, hybrid_params):
+			yield cmd
 	if benchmark == 'micropp':
 		for cmd in micropp.commands(num_nodes, hybrid_params):
 			yield cmd
@@ -348,6 +355,8 @@ def get_est_time_secs(benchmark):
 		my_est_time_secs += syntheticslow.get_est_time_secs()
 	if benchmark == 'convergence':
 		my_est_time_secs += syntheticconvergence.get_est_time_secs()
+	if benchmark == 'bestdegree':
+		my_est_time_secs += bestdegree.get_est_time_secs()
 	if benchmark == 'micropp':
 		my_est_time_secs += micropp.get_est_time_secs()
 	if benchmark == 'nbody':
@@ -366,6 +375,8 @@ def all_num_nodes():
 		num_nodes.update(syntheticslow.num_nodes())
 	if include_apps['convergence']:
 		num_nodes.update(syntheticconvergence.num_nodes())
+	if include_apps['bestdegree']:
+		num_nodes.update(bestdegree.num_nodes())
 	if include_apps['micropp']:
 		num_nodes.update(micropp.num_nodes())
 	if include_apps['nbody']:
@@ -383,6 +394,8 @@ def generate_plots(results):
 		syntheticslow.generate_plots(results, output_prefix_str)
 	if include_apps['convergence']:
 		syntheticconvergence.generate_plots(results, output_prefix_str)
+	if include_apps['bestdegree']:
+		bestdegree.generate_plots(results, output_prefix_str)
 	if include_apps['micropp']:
 		micropp.generate_plots(results, output_prefix_str)
 	if include_apps['nbody']:
