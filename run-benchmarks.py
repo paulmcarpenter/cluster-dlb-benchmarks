@@ -226,7 +226,7 @@ def get_file_results(fullname, results):
 				time = float(m.group(5))
 				results.append((r,time))
 				key = f"executable: {r['executable']} numnodes: {r['numnodes']} appranks: {r['appranks']} degree: {r['degree']} policy: {r['policy']} lewi: {r['lewi']} drom: {r['drom']}"
-				print(key)
+				#print(key)
 				if not key in keys:
 					print(fullname + ':', key)
 				keys.add(key)

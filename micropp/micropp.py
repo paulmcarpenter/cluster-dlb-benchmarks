@@ -92,99 +92,119 @@ def generate_plots(results, output_prefix_str):
 	policies = get_values(results, 'policy')
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
+	numnodess = get_values(results, 'numnodes')
 
-	# Generate time series plots
-	for appranks in apprankss:
-		for policy in policies:
-			for degree in degrees:
-				for lewi in ['true', 'false']:
-					for drom in ['true', 'false']: 
-						if lewi == 'true':
-							if drom == 'true':
-								dlb_str = 'dlb'
-							else:
-								dlb_str = 'lewi'
-						else:
-							if drom == 'true':	
-								dlb_str = 'drom'
-							else:
-								dlb_str = 'nodlb'
-						title = 'micropp-appranks%d-%s-deg%d-%s.pdf' % (appranks, policy, degree, dlb_str)
+	# # Generate time series plots
+	# for appranks in apprankss:
+	# 	for policy in policies:
+	# 		for degree in degrees:
+	# 			for lewi in ['true', 'false']:
+	# 				for drom in ['true', 'false']: 
+	# 					if lewi == 'true':
+	# 						if drom == 'true':
+	# 							dlb_str = 'dlb'
+	# 						else:
+	# 							dlb_str = 'lewi'
+	# 					else:
+	# 						if drom == 'true':	
+	# 							dlb_str = 'drom'
+	# 						else:
+	# 							dlb_str = 'nodlb'
+	# 					title = 'micropp-appranks%d-%s-deg%d-%s.pdf' % (appranks, policy, degree, dlb_str)
 
-						res = [ (r,times) for (r,times) in results \
-									if r['appranks'] == appranks \
+	# 					res = [ (r,times) for (r,times) in results \
+	# 								if r['appranks'] == appranks \
+	# 								   and r['degree'] == degree \
+	# 								   and r['lewi'] == lewi \
+	# 								   and r['drom'] == drom \
+	# 								   and (r['policy'] == policy or int(degree) == 1) ]
+	# 					if len(res) > 0:
+	# 						nsteps = 1+max([int(r['step']) for (r,times) in results])
+
+	# 						with PdfPages('output/%s%s' % (output_prefix_str,title)) as pdf:
+	# 							maxy = 0
+	# 							for rank in range(0, appranks):
+	# 								xx = []
+	# 								yy = []
+	# 								for step in range(0,nsteps):
+	# 									t = [times for r,times in res \
+	# 										if int(r['rank']) == rank and int(r['step']) == step]
+	# 									#print(f'degree={degree} rank={rank} step={step} t={t}')
+	# 									if len(t) == 1:
+	# 										xx.append(step)
+	# 										yy.append(average(t[0]) / 1000.0)
+	# 									else:
+	# 										assert len(t) == 0
+	# 								plt.plot(xx, yy, label = f'Apprank {rank}')
+	# 								maxy = max(maxy,max(yy))
+	# 							plt.title('%s degree %d: Execution time per timestep' % (policy, degree))
+	# 							plt.xlabel('Iteration number')
+	# 							plt.ylabel('Execution time (s)')
+	# 							plt.ylim(0,maxy)
+	# 							plt.legend()
+	# 							pdf.savefig()
+	# 							plt.close()
+	
+
+
+	# Generate barcharts
+	for policy in ['local', 'global']:
+		for appranks_per_node in [1,2]:
+			filename = f'output/{output_prefix_str}micropp-barcharts-{appranks_per_node}-{policy}.pdf'
+			print(f'Generating {filename}')
+			with PdfPages(filename) as pdf:
+				lewi = 'true'
+				drom = 'true'
+				ind = None
+
+				# Centre for each number of nodes
+				xnodes = np.arange(len(numnodess))
+				xpos = 0
+
+				for numnodes in numnodess:
+					for k,degree in enumerate(degrees):
+						numappranks = appranks_per_node * numnodes
+						print(f'{policy} {appranks_per_node} {numnodes} {degree}')
+						avgs = []
+						stdevs = []
+						curr1 = [ (r,times) for (r,times) in results \
+									if r['appranks'] == numappranks \
 									   and r['degree'] == degree \
 									   and r['lewi'] == lewi \
 									   and r['drom'] == drom \
+									   and r['numnodes'] == numnodes \
 									   and (r['policy'] == policy or int(degree) == 1) ]
-						if len(res) > 0:
-							nsteps = 1+max([int(r['step']) for (r,times) in results])
 
-							with PdfPages('output/%s%s' % (output_prefix_str,title)) as pdf:
-								maxy = 0
-								for rank in range(0, appranks):
-									xx = []
-									yy = []
-									for step in range(0,nsteps):
-										t = [times for r,times in res \
-											if int(r['rank']) == rank and int(r['step']) == step]
-										#print(f'degree={degree} rank={rank} step={step} t={t}')
-										if len(t) == 1:
-											xx.append(step)
-											yy.append(average(t[0]) / 1000.0)
-										else:
-											assert len(t) == 0
-									plt.plot(xx, yy, label = f'Apprank {rank}')
-									maxy = max(maxy,max(yy))
-								plt.title('%s degree %d: Execution time per timestep' % (policy, degree))
-								plt.xlabel('Iteration number')
-								plt.ylabel('Execution time (s)')
-								plt.ylim(0,maxy)
-								plt.legend()
-								pdf.savefig()
-								plt.close()
-	
-	# Generate barcharts
-	with PdfPages('output/%smicropp-barcharts.pdf' % output_prefix_str) as pdf:
-		lewi = 'true'
-		drom = 'true'
-		groups = [(4, 'local'), (4, 'global'), (8, 'local'), (8, 'global'), (16, 'local'), (16, 'global')]
-		ind = None
-		for k,degree in enumerate(degrees):
-			avgs = []
-			stdevs = []
-			for (appranks, policy) in groups:
-				curr = [ (r,times) for (r,times) in results \
-							if r['appranks'] == appranks \
-							   and r['degree'] == degree \
-							   and r['lewi'] == lewi \
-							   and r['drom'] == drom \
-							   and (r['policy'] == policy or int(degree) == 1)\
-							   and int(r['step']) >= nsteps*0.67  ] 
-				vals = []
-				for step in range(0,nsteps):
-					curr2 = [average(times) for r,times in curr if int(r['step']) == step]
-					if len(curr2) > 0:
-						vals.append(max(curr2))
+						if len(curr1) > 0:
+							nsteps = 1+max([int(r['step']) for (r,times) in curr1])
+							curr = [ (r,times) for (r,times) in curr1 \
+										   if int(r['step']) >= nsteps*0.67  ] 
+							vals = []
+							for step in range(0,nsteps):
+								curr2 = [average(times) for r,times in curr if int(r['step']) == step]
+								if len(curr2) > 0:
+									vals.append(max(curr2))
 
-				if len(vals) > 0:
-					avg = average(vals)
-					stdev = np.std(vals)
-				else:
-					avg = 0
-					stdev = 0
-				avgs.append(avg)
-				stdevs.append(stdev)
-			ind = np.arange(len(avgs))
-			width = 0.1
-			plt.bar(ind + k * width, avgs, width, yerr=stdev, label='degree %d' % degree)
-		if not ind is None:
-			plt.xticks(ind + 2*width, ['%d %s' % g for g in groups])
-			plt.legend(loc='best')
-			pdf.savefig()
-			plt.close()
-	sys.exit(1)
+							if len(vals) > 0:
+								avg = average(vals)
+								stdev = np.std(vals)
+							else:
+								avg = 0
+								stdev = 0
+							avgs.append(avg / 1000.0)  # Convert ms to seconds
+							stdevs.append(stdev / 1000.0)
+							print(f'Averages {avgs}')
+						ind = np.arange(len(avgs))
+						width = 0.1
+						plt.bar(ind + xpos, avgs, width, yerr=stdevs, label='degree %d' % degree)
+						plt.xticks(xnodes, numnodess)
+						xpos += 0.05 # For degree
+					xpos += 0.2 # For num_nodes
 
+				#plt.legend(loc='best')
+				plt.ylabel('Execution time per timestep (secs)')
+				pdf.savefig()
+				plt.close()
 
 	
 
