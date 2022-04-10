@@ -33,7 +33,7 @@ command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
-	return [2,3,4,6,8,10,12,14,16,20,24,28,32]
+	return list(range(2,33))
 
 # Check whether the binary is missing
 def make():
@@ -63,7 +63,7 @@ def commands(num_nodes, hybrid_params):
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
 					cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
-					est_time_secs += 2 * 60 * 60 # 2 hours each
+					est_time_secs += 4 * 60 * 60 # 4 hours each
 					yield cmd
 
 def get_est_time_secs():
@@ -138,18 +138,19 @@ def generate_plots(results, output_prefix_str):
 				print(f'appranks {appranks} imb {imb} bestdeg {bestdeg}')
 				max_bestdeg = max(max_bestdeg, bestdeg)
 
-				z[appranks-1][int((float(imb)-1)/imb_delta)] = bestdeg
+				colnum = int(0.5+(float(imb)-1)/imb_delta)
+				z[appranks-1][colnum] = bestdeg - 0.5
 				#xx.append(appranks)
 				#yy.append(imb)
 				#zz.append(bestdeg)
 
-		cmap = plt.cm.get_cmap("magma", max_bestdeg)
+		cmap = plt.cm.get_cmap("rainbow", max_bestdeg)
 		im = plt.pcolormesh(x, y, z, cmap=cmap)
 
-		norm= matplotlib.colors.BoundaryNorm(np.arange(0,max_bestdeg+1)-0.5, max_bestdeg)
+		norm= matplotlib.colors.BoundaryNorm(np.arange(0,max_bestdeg+1)+0.5, max_bestdeg)
 		sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 		sm.set_array([])
-		plt.colorbar(sm, ticks=np.arange(0,max_bestdeg))
+		plt.colorbar(sm, ticks=np.arange(1,max_bestdeg+1))
 
 		plt.xlabel('Imbalance')
 		plt.ylabel('Number of appranks')
