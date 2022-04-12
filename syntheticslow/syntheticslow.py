@@ -9,7 +9,9 @@ import re
 try:
 	import numpy as np
 	from matplotlib.backends.backend_pdf import PdfPages
+	from matplotlib import rcParams
 	import matplotlib.pyplot as plt
+	rcParams.update({'figure.autolayout': True})
 except ImportError:
 	pass
 
@@ -146,7 +148,8 @@ def generate_plots(results, output_prefix_str):
 					min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 					max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 					print(min_imb, max_imb, baseline_time)
-					plt.figure(figsize=(4,5))
+					fig = plt.figure(figsize=(4,5))
+					ax = fig.add_subplot(111)
 
 					plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
 
@@ -182,6 +185,7 @@ def generate_plots(results, output_prefix_str):
 					else:
 						plt.xlabel('Imbalance (slow node has most work)')
 						plt.xlim(1.0, max_imb)
+						ax.yaxis.tick_right()
 					plt.ylim(0,maxyy)
 
 					# Order legend to put the perfect balance (which was plotted first, so has index 0) last
@@ -189,7 +193,7 @@ def generate_plots(results, output_prefix_str):
 					n = len(handles)
 					order = list(range(1,n)) + [0] # List of indices according to original order
 					plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], loc='best')
-
+					plt.tight_layout(pad=0.1, w_pad=0.1, h_pad=0.1)
 					pdf.savefig()
 
 

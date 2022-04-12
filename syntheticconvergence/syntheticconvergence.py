@@ -216,7 +216,7 @@ def generate_plots(results, output_prefix_str):
 			print(f'appranks {appranks} imb {imbalance}: len {lcurr}')
 			if float(imbalance) > 1.0 and len(curr) > 0:
 				with PdfPages('output/%ssynthetic-convergence-%s-%s.pdf' % (output_prefix_str,appranks, imbalance)) as pdf:
-					plt.figure(figsize=(8,6))
+					plt.figure(figsize=(8,4))
 					for r,times in results:
 						if r['appranks'] == appranks and r['imb'] == imbalance and int(r['degree']) in degrees:
 							vranks = int(appranks)
@@ -230,12 +230,12 @@ def generate_plots(results, output_prefix_str):
 								linestyle = '-'
 								linewidth = 2.0
 							elif r['lewi'] == 'true' :
-								dlb = 'lewi-only '
+								dlb = 'LeWI-only '
 								linestyle = '--'
 								linewidth = 0.7
 							else:
 								assert r['drom'] == 'true'
-								dlb = 'drom-only '
+								dlb = 'DROM-only '
 								linestyle = '-.'
 								linewidth = 1.0
 							imb = r['imb']
