@@ -5,13 +5,16 @@ from string import Template
 import re
 import copy
 
+
 # Workaround for python/3.6.6_gdb doesn't support numpy
 # See run-benchmarks.py
 try:
 	import numpy as np
 	from matplotlib.backends.backend_pdf import PdfPages
+	from matplotlib import rcParams
 	import matplotlib.pyplot as plt
 	import matplotlib.colors
+	rcParams.update({'figure.autolayout': True})
 except ImportError:
 	pass
 
@@ -126,7 +129,7 @@ def generate_plots(results, output_prefix_str):
 						and r['drom'] == drom \
 						and int(r['iter']) == niters-1]
 			imbs = get_values(curr, 'imb')
-			print(f'appranks {appranks} imbs {imbs}')
+			#print(f'appranks {appranks} imbs {imbs}')
 			for imb in imbs:
 				curr2 = [(r,times) for (r,times) in curr if r['imb'] == imb]
 				degrees = get_values(curr2, 'degree')
@@ -139,11 +142,11 @@ def generate_plots(results, output_prefix_str):
 					ys = [times for (r,times) in curr3]
 					raw_times[ (appranks, colnum, degree) ] = ys
 					yval = average([average(yy) for yy in ys])
-					print(f'appranks {appranks} imb {imb} deg {degree}, times {ys} => {yval}')
+					#print(f'appranks {appranks} imb {imb} deg {degree}, times {ys} => {yval}')
 					if bestval is None or yval < bestval:
 						bestval = yval
 						bestdeg = degree
-				print(f'appranks {appranks} imb {imb} bestdeg {bestdeg}')
+				#print(f'appranks {appranks} imb {imb} bestdeg {bestdeg}')
 				max_bestdeg = max(max_bestdeg, bestdeg)
 
 				z[appranks-1][colnum] = bestdeg - 0.5
@@ -170,6 +173,7 @@ def generate_plots(results, output_prefix_str):
 	y, x = np.mgrid[slice(0.5, 32.5,1), slice(1-imb_delta/2,imb_max-imb_delta/2,imb_delta)]
 	z = 0*x + np.NaN
 	with PdfPages('output/%ssmoothed-bestdegree.pdf' % (output_prefix_str)) as pdf:
+		plt.figure(figsize=(6,3.5))
 		for appranks in apprankss:
 			lewi = 'true'
 			drom = 'true'
