@@ -105,11 +105,18 @@ def generate_plots(results, output_prefix_str):
 		return
 	niters = 1 + max(all_iters)
 
-	baseline_time = 5
 
 	# Generate plot as function of memory
 	maxyy = 1
 	for appranks in apprankss:
+
+		# Baseline time would be five seconds if all nodes are fast
+		# But the n nodes have a collective throughput of (n-1) + 1/3,
+		# so need to rescale because of this
+		collective_throughput = (appranks-1) + 1/3.0
+		perfect_throughput = appranks
+		baseline_time = 5 * perfect_throughput / collective_throughput
+
 		for policy in policies:
 			lewi = 'true'
 			drom = 'true'
@@ -139,7 +146,8 @@ def generate_plots(results, output_prefix_str):
 					min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 					max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 					print(min_imb, max_imb, baseline_time)
-					plt.figure(figsize=(4,6))
+					plt.figure(figsize=(4,5))
+
 					plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
 
 					for degree in degrees:
