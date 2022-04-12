@@ -3,6 +3,7 @@ import sys
 import os
 from string import Template
 import re
+import copy
 
 # Workaround for python/3.6.6_gdb doesn't support numpy
 # See run-benchmarks.py
@@ -110,6 +111,10 @@ def generate_plots(results, output_prefix_str):
 	z = 0*x + np.NaN
 
 	max_bestdeg = 0
+
+	# Array of raw times
+	raw_times = {}
+
 	with PdfPages('output/%sbestdegree.pdf' % (output_prefix_str)) as pdf:
 		for appranks in apprankss:
 			lewi = 'true'
@@ -125,20 +130,22 @@ def generate_plots(results, output_prefix_str):
 			for imb in imbs:
 				curr2 = [(r,times) for (r,times) in curr if r['imb'] == imb]
 				degrees = get_values(curr2, 'degree')
-				print(f'imb: {imb} degs: {degrees}')
+				# print(f'imb: {imb} degs: {degrees}')
 				bestdeg = None
 				bestval = None
+				colnum = int(0.5+(float(imb)-1)/imb_delta)
 				for degree in degrees:
 					curr3 = [(r,times) for (r,times) in curr2 if r['degree'] == degree]
 					ys = [times for (r,times) in curr3]
-					yval = average(ys[0])
+					raw_times[ (appranks, colnum, degree) ] = ys
+					yval = average([average(yy) for yy in ys])
+					print(f'appranks {appranks} imb {imb} deg {degree}, times {ys} => {yval}')
 					if bestval is None or yval < bestval:
 						bestval = yval
 						bestdeg = degree
 				print(f'appranks {appranks} imb {imb} bestdeg {bestdeg}')
 				max_bestdeg = max(max_bestdeg, bestdeg)
 
-				colnum = int(0.5+(float(imb)-1)/imb_delta)
 				z[appranks-1][colnum] = bestdeg - 0.5
 				#xx.append(appranks)
 				#yy.append(imb)
@@ -156,6 +163,59 @@ def generate_plots(results, output_prefix_str):
 		plt.ylabel('Number of appranks')
 		pdf.savefig()
 		plt.close()
+
+	# Now smooth the raw times
+	smoothed_times = []
+	max_bestdeg = 0
+	y, x = np.mgrid[slice(0.5, 32.5,1), slice(1-imb_delta/2,imb_max-imb_delta/2,imb_delta)]
+	z = 0*x + np.NaN
+	with PdfPages('output/%ssmoothed-bestdegree.pdf' % (output_prefix_str)) as pdf:
+		for appranks in apprankss:
+			lewi = 'true'
+			drom = 'true'
+			
+			for colnum in range(0, int(0.5+(imb_max-1.0) / imb_delta)):
+				bestdeg = None
+				bestval = None
+				imb = 1.0 + colnum * imb_delta
+				for degree in range(1,10):
+					if (appranks, colnum, degree) in raw_times:
+						#print(f'Raw {appranks} {colnum} {degree}\n')
+						ys = copy.deepcopy(raw_times[(appranks, colnum, degree)])
+						if (appranks, colnum-1, degree) in raw_times:
+							ys.extend( raw_times[(appranks,colnum-1,degree)])
+						if (appranks, colnum+1, degree) in raw_times:
+							ys.extend( raw_times[(appranks,colnum+1,degree)])
+						if (appranks-1, colnum, degree) in raw_times:
+							ys.extend( raw_times[(appranks-1,colnum,degree)])
+						if (appranks+1, colnum, degree) in raw_times:
+							ys.extend( raw_times[(appranks+1,colnum,degree)])
+						yval = average([average(yy) for yy in ys])
+						#print(f'Smoothed: appranks {appranks} imb {imb} deg {degree}, times {ys} => {yval}')
+						if bestval is None or yval < bestval:
+							bestval = yval
+							bestdeg = degree
+				#print(f'Smoothed: appranks {appranks} imb {imb} bestdeg {bestdeg}')
+
+				if not bestdeg is None:
+					max_bestdeg = max(max_bestdeg, bestdeg)
+					z[appranks-1][colnum] = bestdeg - 0.5
+
+		z[0][0] = 0.5
+		cmap = plt.cm.get_cmap("rainbow", max_bestdeg)
+		im = plt.pcolormesh(x, y, z, cmap=cmap)
+
+		norm= matplotlib.colors.BoundaryNorm(np.arange(0,max_bestdeg+1)+0.5, max_bestdeg)
+		sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+		sm.set_array([])
+		plt.colorbar(sm, ticks=np.arange(1,max_bestdeg+1))
+
+		plt.xlabel('Imbalance')
+		plt.ylabel('Number of appranks')
+		pdf.savefig()
+		plt.close()
+
+
 
 
 
