@@ -216,13 +216,33 @@ def generate_plots(results, output_prefix_str):
 			print(f'appranks {appranks} imb {imbalance}: len {lcurr}')
 			if float(imbalance) > 1.0 and len(curr) > 0:
 				with PdfPages('output/%ssynthetic-convergence-%s-%s.pdf' % (output_prefix_str,appranks, imbalance)) as pdf:
-					plt.figure(figsize=(8,4))
-					for r,times in results:
+					plt.figure(figsize=(0.8*8,0.8*4))
+
+					def sortkey(entry):
+						r, times = entry
+						if int(r['degree']) == 1:
+							return 1 # Baseline
+						elif r['lewi'] == 'true' and r['drom'] == 'false' and r['policy'] == 'global':
+							return 2
+						elif r['lewi'] == 'true' and r['drom'] == 'false' and r['policy'] == 'local':
+							return 3
+						elif r['lewi'] == 'false' and r['drom'] == 'true' and r['policy'] == 'global':
+							return 4
+						elif r['lewi'] == 'false' and r['drom'] == 'true' and r['policy'] == 'local':
+							return 5
+						elif r['policy'] == 'global':
+							return 6
+						elif r['policy'] == 'local':
+							return 7
+
+					sorted_results = sorted(results, key = sortkey)
+
+					for r,times in sorted_results:
 						if r['appranks'] == appranks and r['imb'] == imbalance and int(r['degree']) in degrees:
 							vranks = int(appranks)
 							degree = int(r['degree'])
 							if degree == 1:
-								dlb = 'no rebalance '
+								dlb = 'Baseline '
 								linestyle = '-'
 								linewidth = 1.5
 							elif r['lewi'] == 'true' and r['drom'] == 'true':

@@ -9,7 +9,9 @@ import re
 try:
 	import numpy as np
 	from matplotlib.backends.backend_pdf import PdfPages
+	from matplotlib import rcParams
 	import matplotlib.pyplot as plt
+	rcParams.update({'figure.autolayout': True})
 except ImportError:
 	pass
 
@@ -113,6 +115,7 @@ def generate_plots(results, output_prefix_str):
 		
 			with PdfPages('output/%ssynthetic-scatter-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
 
+				plt.figure(figsize=(5.9,5.9/1.61))
 				# Draw perfect balance line
 				min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 				max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
@@ -144,7 +147,7 @@ def generate_plots(results, output_prefix_str):
 						print('yy =', yy)
 						plt.plot(xx, yy, label = f'degree {degree}', marker='o')
 
-				plt.title(f'Appranks {appranks} policy {policy}')
+				#plt.title(f'Appranks {appranks} policy {policy}')
 				plt.xlabel('Imbalance')
 				plt.ylabel('Execution time (s)')
 				plt.xlim(min_imb, max_imb)
