@@ -230,14 +230,15 @@ int main( int argc, char *argv[] )
 
 	if (sweep_imbalance) {
 		int estimated_time_secs = 30 * 60;  // for the baseline
-		double avg_imbalance = (1.0 + num_appranks) / 2.0;
+		int max_imbalance = num_appranks < 4 ? num_appranks : 4;
+		double avg_imbalance = (1.0 + max_imbalance) / 2.0;
 		double est_time_per_run = niter * ntasks_per_core * avg_time_per_task * avg_imbalance/ 1000000.0;
 		int nruns = estimated_time_secs / est_time_per_run;
 		printf("est_time_per_run = %.3f\n", est_time_per_run);
 		printf("nruns: %d\n", nruns);
-		float imbalance_step = 1.0 * (num_appranks - 1.0) / nruns;
+		float imbalance_step = 1.0 * (max_imbalance - 1.0) / nruns;
 
-		int max_i = (num_appranks-1) / imbalance_step;
+		int max_i = (max_imbalance-1) / imbalance_step;
 		for(int i=0; i<max_i; i++) {
 			double target_imbalance = 1.0 + i * imbalance_step;
 			run_with_imbalance(argv[0], id, num_appranks, target_imbalance, runs_per_imbalance);

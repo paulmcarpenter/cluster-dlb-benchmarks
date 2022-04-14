@@ -115,7 +115,7 @@ def generate_plots(results, output_prefix_str):
 		
 			with PdfPages('output/%ssynthetic-scatter-%d-%s.pdf' % (output_prefix_str,appranks,policy)) as pdf:
 
-				plt.figure(figsize=(5.9,5.9/1.61))
+				plt.figure(figsize=(0.80*5.9,0.80*3.5))
 				# Draw perfect balance line
 				min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 				max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
@@ -158,6 +158,7 @@ def generate_plots(results, output_prefix_str):
 				n = len(handles)
 				order = list(range(1,n)) + [0] # List of indices according to original order
 				plt.legend([handles[idx] for idx in order], [labels[idx] for idx in order], loc='best')
+				plt.margins(0)
 
 				pdf.savefig()
 				plt.close()
