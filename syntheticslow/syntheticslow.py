@@ -148,7 +148,7 @@ def generate_plots(results, output_prefix_str):
 					min_imb = min([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 					max_imb = max([float(r['imb']) for (r,times) in results if r['appranks'] == appranks])
 					print(min_imb, max_imb, baseline_time)
-					fig = plt.figure(figsize=(0.8*4,0.8*5))
+					fig = plt.figure(figsize=(0.8*4,0.8*4))
 					ax = fig.add_subplot(111)
 
 					plt.plot([min_imb, max_imb], [baseline_time, baseline_time], color='silver', label='Perfect balance') #, marker='o')
