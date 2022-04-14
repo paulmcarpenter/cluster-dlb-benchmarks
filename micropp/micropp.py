@@ -155,14 +155,17 @@ def generate_plots(results, output_prefix_str):
 			lewi = 'true'
 			drom = 'true'
 			ind = None
-			width = 0.15
+			width = 0.1
+
+			fig = plt.figure(figsize=(6.0*0.9,3.2*0.9))
+			ax = fig.add_subplot(111)
 
 			# All xticks: x positions
 			xticksx = []
 			# All xticks: labels
 			xtickslabels = []
 
-			for kd, degree in enumerate((1,2,3)):
+			for kd, degree in enumerate(range(1,6)):
 
 				xx = []
 				avgs = []
@@ -207,23 +210,17 @@ def generate_plots(results, output_prefix_str):
 
 					if kd == 0:
 						xmid = average(xnodes)
-						plt.text(xmid, -4, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
+						plt.text(xmid, -6, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
 
 				print(f'Plot {xx} {avgs} {stdevs}')
 				print(len(xx), len(avgs), len(stdevs))
-				if degree == 1:
-					legend = 'MPI'
-				elif degree == 2:
-					legend = 'MPI + Offload to 1 node'
-				elif degree == 3:
-					legend = 'MPI + Offload to 2 nodes'
-				else:
-					legend = f'degree {degree}'
+				legend = f'degree {degree}'
 				plt.bar(xx, avgs, width, yerr=stdevs, label=legend)
 
 			plt.xticks(xticksx, xtickslabels)
-			plt.legend(loc='lower right')
-			plt.ylabel('Execution time per timestep (secs)')
+			plt.legend(loc='upper right')
+			plt.ylabel('Exec. time per timestep (secs)')
+			#ax.xaxis.labelpad = 50
 			pdf.savefig()
 			plt.close()
 
