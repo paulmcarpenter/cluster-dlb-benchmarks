@@ -63,7 +63,7 @@ def commands(num_nodes, hybrid_params):
 				for drom in ['true']: # ['true','false'] if degree != 1
 					for lewi in ['true']: # ['true','false'] if degree != 1
 						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, ngp=ngp)
-						est_time_secs += 6 * 60 # 6 minutes: a guess!
+						est_time_secs += 12 * 60 # a guess!
 						yield cmd
 
 def get_est_time_secs():
