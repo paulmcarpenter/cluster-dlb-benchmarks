@@ -15,6 +15,26 @@ int niter = 10;
 int ntasks_per_core = NTASKS_PER_CORE;
 int ntasks = (16 * NTASKS_PER_CORE) - 8;
 
+const char *get_hostname(void)
+{
+  FILE *fp;
+  int size = 1000;
+  char *hostname = malloc(size);
+
+  /* Open the command to get hostname. */
+  fp = popen("hostname", "r");
+  if (fp == NULL) {
+    printf("Failed to run command\n" );
+    exit(1);
+  }
+  fgets(hostname, size, fp);
+
+  /* close */
+  pclose(fp);
+
+  return hostname;
+}
+
 
 float get_cpu_freq_mhz(void)
 {
@@ -129,16 +149,21 @@ int calculate_work(int num_appranks, double target_imbalance, int *work_per_rank
 	}
 }
 
-// Simple function to wait for a fixed time
-void wait(const struct timespec ts)
-{
-	struct timespec rem;
-	int retval = nanosleep(&ts, &rem);
+static int val = 1;
 
-	while (retval == -1) {
-		struct timespec ts2 = rem;
-		retval = nanosleep(&ts2, &rem);
+// Simple function to wait for a roughly time
+void wait(int mywork_us)
+{
+	// 30 iterations of this loop takes about 1 ms on Nord3
+	int w, j;
+	int a = 1;
+	for(w = 0; w < mywork_us; w++) {
+		// Each iteration is about 1 us on Nord3
+		for(j = 0; j < 300; j++) {
+			a = (a*3) + 56 + (a>>5);
+		}
 	}
+	val += a;
 }
 
 void run_with_imbalance(const char *appname, int id, int num_appranks, double target_imbalance, int runs_per_imbalance)
@@ -178,11 +203,6 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 		MPI_Bcast(&imbalance, 1, MPI_DOUBLE, 0, comm);
 		printf("Rank %d gets %d (imb=%f)\n", id, mywork_us, imbalance);
 
-		// Time per task as struct timespec
-		struct timespec ts;
-		ts.tv_sec = mywork_us / 1000000;
-		ts.tv_nsec = (mywork_us % 1000000) * 1000;
-
 		// Allocate memory for all tasks
 		int bytes_per_task = 1;
 		char *mem = (char *)nanos6_lmalloc(ntasks * bytes_per_task);
@@ -205,7 +225,7 @@ void run_with_imbalance(const char *appname, int id, int num_appranks, double ta
 					// Very simple correctness check on the first byte
 					assert(c[0] == (char)(task + iter + 10));
 					c[0] ++;
-					wait(ts);
+					wait(mywork_us);
 				}
 			}
 
@@ -267,8 +287,9 @@ int main( int argc, char *argv[] )
 			for (int j = 0; j < degree; j++) {
 				#pragma oss task inout(seq) node(j)
 				{
+					const char *hostname = get_hostname();
 					float freq_ghz = get_cpu_freq_mhz() / 1000.0;
-					printf("Apprank %d internalRank %d: freq = %f GHz\n", i, j, freq_ghz);
+					printf("Apprank %d internalRank %d: %s freq = %f GHz\n", i, j, hostname, freq_ghz);
 				}
 			}
 		}
