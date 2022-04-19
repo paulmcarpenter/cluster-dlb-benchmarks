@@ -15,7 +15,7 @@ except ImportError:
 
 # Template to create the command to run the benchmark
 command_template = ' '.join(['runhybrid.py --nodes $nodes --oneslow --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --monitor 10 --local-period 10 --config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
-				             'build/n_body -N 50000 -s 10 -v'])
+				             'build/n_body -N 50000 -s 10 -v -A'])
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
@@ -84,99 +84,82 @@ def generate_plots(results, output_prefix_str):
 	policies = get_values(results, 'policy')
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
+	numnodess = get_values(results, 'numnodes')
 
-	# Generate time series plots
-	for appranks in apprankss:
-		for policy in policies:
-			for degree in degrees:
-				for lewi in ['true', 'false']:
-					for drom in ['true', 'false']: 
-						if lewi == 'true':
-							if drom == 'true':
-								dlb_str = 'dlb'
-							else:
-								dlb_str = 'lewi'
-						else:
-							if drom == 'true':	
-								dlb_str = 'drom'
-							else:
-								dlb_str = 'nodlb'
-						title = 'nbodyslownord-appranks%d-%s-deg%d-%s.pdf' % (appranks, policy, degree, dlb_str)
+	# Generate barcharts
+	for policy in ['local', 'global']:
+		filename = f'output/{output_prefix_str}nbodyslownord-barcharts-{policy}.pdf'
+		with PdfPages(filename) as pdf:
+			lewi = 'true'
+			drom = 'true'
+			ind = None
+			width = 0.1
+			fig = plt.figure(figsize=(6.0*0.9,3.2*0.9))
+			ax = fig.add_subplot(111)
 
-						res = [ (r,times) for (r,times) in results \
-									if r['appranks'] == appranks \
+			# All xticks: x positions
+			xticksx = []
+			# All xticks: labels
+			xtickslabels = []
+
+			for kd, degree in enumerate(range(1,6)):
+
+				xx = []
+				avgs = []
+				stdevs = []
+
+				for j, appranks_per_node in enumerate([1,2]):
+					xcurr = 6.5 * j
+					# Centre for each number of nodes
+					xnodes = np.arange(len(numnodess)) + xcurr
+					xx.extend(xnodes + (kd-1)*width*1.5)
+					xticksx.extend(xnodes)
+					xtickslabels.extend(numnodess)
+
+					for kn, numnodes in enumerate(numnodess):
+						numappranks = appranks_per_node * numnodes
+						print(f'{policy} appranks: {numappranks} vranks: {numnodes} {degree}')
+						curr1 = [ (r,times) for (r,times) in results \
+									if r['appranks'] == numappranks \
 									   and r['degree'] == degree \
 									   and r['lewi'] == lewi \
 									   and r['drom'] == drom \
-									   and (r['policy'] == policy or degree == 1)]
-						if len(res) > 0:
-							nsteps = 1+max([int(r['step']) for (r,times) in results])
+									   and r['numnodes'] == numnodes \
+									   and (r['policy'] == policy or int(degree) == 1) ]
 
-							with PdfPages('output/%s%s' % (output_prefix_str,title)) as pdf:
-								maxy = 0
-								for rank in range(0, appranks):
-									xx = []
-									yy = []
-									for step in range(0,nsteps):
-										t = [times for r,times in res \
-											if int(r['rank']) == rank and int(r['step']) == step]
-										#print(f'degree={degree} rank={rank} step={step} t={t}')
-										if len(t) == 1:
-											xx.append(step)
-											yy.append(average(t[0]) / 1000.0)
-										else:
-											assert len(t) == 0
-									plt.plot(xx, yy, label = f'Apprank {rank}')
-									maxy = max(maxy,max(yy))
-								plt.title('%s degree %d: Execution time per timestep' % (policy, degree))
-								plt.xlabel('Iteration number')
-								plt.ylabel('Execution time (s)')
-								plt.ylim(0,maxy)
-								plt.legend()
-								pdf.savefig()
-								plt.close()
-	
-	# Generate barcharts
-	with PdfPages('output/%snbodyslownord-barcharts.pdf' % output_prefix_str) as pdf:
-		lewi = 'true'
-		drom = 'true'
-		groups = [(4, 'local'), (4, 'global'), (8, 'local'), (8, 'global'), (16, 'local'), (16, 'global')]
-		ind = None
-		for k,degree in enumerate(degrees):
-			avgs = []
-			stdevs = []
-			for (appranks, policy) in groups:
-				curr = [ (r,times) for (r,times) in results \
-							if r['appranks'] == appranks \
-							   and r['degree'] == degree \
-							   and r['lewi'] == lewi \
-							   and r['drom'] == drom \
-							   and (r['policy'] == policy or int(degree) == 1)\
-							   and int(r['step']) >= nsteps*0.67  ] 
-				vals = []
-				for step in range(0,nsteps):
-					curr2 = [average(times) for r,times in curr if int(r['step']) == step]
-					if len(curr2) > 0:
-						vals.append(max(curr2))
+						avg = 0
+						stdev = 0
+						if len(curr1) > 0:
+							nsteps = 1+max([int(r['step']) for (r,times) in curr1])
+							curr = [ (r,times) for (r,times) in curr1 \
+										   if int(r['step']) >= nsteps*0.67  ] 
+							vals = []
+							for step in range(0,nsteps):
+								curr2 = [average(times) for r,times in curr if int(r['step']) == step]
+								if len(curr2) > 0:
+									vals.append(max(curr2))
 
-				if len(vals) > 0:
-					avg = average(vals)
-					stdev = np.std(vals)
-				else:
-					avg = 0
-					stdev = 0
-				avgs.append(avg)
-				stdevs.append(stdev)
-			ind = np.arange(len(avgs))
-			width = 0.1
-			plt.bar(ind + k * width, avgs, width, yerr=stdev, label='degree %d' % degree)
-		if not ind is None:
-			plt.xticks(ind + 2*width, ['%d %s' % g for g in groups])
-			plt.legend(loc='best')
+							if len(vals) > 0:
+								avg = average(vals)
+								stdev = np.std(vals)
+						avgs.append(avg / 1000.0)  # Convert ms to seconds
+						stdevs.append(stdev / 1000.0)
+
+					if kd == 0:
+						xmid = average(xnodes)
+						plt.text(xmid, -6, f'n-body ({appranks_per_node} appranks per node)', ha ='center')
+
+				print(f'Plot {xx} {avgs} {stdevs}')
+				print(len(xx), len(avgs), len(stdevs))
+				legend = f'degree {degree}'
+				plt.bar(xx, avgs, width, yerr=stdevs, label=legend)
+
+			plt.xticks(xticksx, xtickslabels)
+			plt.legend(loc='upper right')
+			plt.ylabel('Exec. time per timestep (secs)')
+			#ax.xaxis.labelpad = 50
 			pdf.savefig()
 			plt.close()
-	sys.exit(1)
-
 
 	
 
