@@ -15,7 +15,7 @@ except ImportError:
 
 # Template to create the command to run the benchmark
 command_template = ' '.join(['runhybrid.py --nodes $nodes --oneslow --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --monitor 10 --local-period 10 --config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
-				             'build/n_body -N 50000 -s 10 -v -A'])
+				             'build/n_body -N $nbodies -s 10 -v -A'])
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
@@ -54,7 +54,8 @@ def commands(num_nodes, hybrid_params):
 		for policy in policies:
 			for drom in ['true']: # ['true','false'] if degree != 1
 				for lewi in ['true']: # ['true','false'] if degree != 1
-					cmd = t.substitute(nodes=num_nodes, vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params)
+					nbodies = num_nodes * 12500
+					cmd = t.substitute(nodes=num_nodes, vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, nbodies=nbodies)
 					est_time_secs += 60 # Approx. 6 seconds per iteration
 					yield cmd
 
