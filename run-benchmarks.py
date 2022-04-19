@@ -17,6 +17,7 @@ from bestdegree import bestdegree
 from syntheticslownord import syntheticslownord
 from micropp import micropp
 from nbody import nbody
+from nbodyslownord import nbodyslownord
 import check_num_nodes
 from string import Template
 import copy
@@ -28,9 +29,9 @@ except ImportError:
 	canImportNumpy = False
 
 # Default parameters
-apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody', 'convergence', 'bestdegree', 'slownord']
-needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False, 'convergence' : True, 'bestdegree' : True, 'slownord' : True}
-include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True, 'convergence' : True, 'bestdegree' : True, 'slownord' : True}
+apps = ['synthetic', 'micropp', 'scatter', 'slow', 'nbody', 'convergence', 'bestdegree', 'slownord', 'nbodyslownord']
+needs_cmake = {'synthetic' : True, 'micropp' : False, 'scatter' : True, 'slow' : True, 'nbody' : False, 'convergence' : True, 'bestdegree' : True, 'slownord' : True, 'nbodyslownord' : True}
+include_apps = {'synthetic' : True, 'micropp' : True, 'scatter' : True, 'slow' : True, 'nbody' : True, 'convergence' : True, 'bestdegree' : True, 'slownord' : True, 'nbodyslownord' : True}
 apps_desc = {'synthetic' : 'synthetic benchmarks',
 			'micropp' : 'micropp benchmarks',
 			'scatter' : 'synthetic scatter benchmark',
@@ -38,7 +39,8 @@ apps_desc = {'synthetic' : 'synthetic benchmarks',
 			'nbody' : 'n-body benchmark',
 			'convergence' : 'convergence benchmark',
 			'bestdegree' : 'bestdegree benchmark',
-                        'slownord' : 'broken: slow node on Nord3'}}
+			'slownord' : 'broken: slow node on Nord3',
+			'nbodyslownord' : 'nbody with a slow node on Nord3'}
 
 verbose = True
 dry_run = False
@@ -96,6 +98,16 @@ job_script_template = """#! /bin/bash
 #SBATCH --qos=$qos
 #SBATCH --output=$job_name.out
 #SBATCH --error=$job_name.err
+
+#ulimit -s 524288 # for AddressSanitizer
+
+./run-benchmarks.py $args batch
+"""
+
+job_script_template_oneslow = """#! /bin/bash
+#SBATCH --nodes=$num_nodes_fast --cpus-per-task=16 --cpu-freq=High --time=$hours:$mins:00 --output=$job_name.out --error=$job_name.err
+#SBATCH hetjob
+#SBATCH --nodes=$num_nodes_slow --cpus-per-task=16 --cpu-freq=1000-1000
 
 #ulimit -s 524288 # for AddressSanitizer
 
@@ -164,7 +176,11 @@ def create_job_script(num_nodes, hours, mins, benchmark):
 		print('Cannot run >4 nodes on debug queue')
 		return None
 	job_script_name = unique_output_name(job_output_dir, 'batch%d_' % num_nodes, '.job')
-	t = Template(job_script_template)
+
+	if benchmark == 'nbodyslownord':
+		t = Template(job_script_template_oneslow)
+	else:
+		t = Template(job_script_template)
 	job_name = job_script_name[:-4]
 	#print(job_name, job_script_name)
 	args_list = []
@@ -177,7 +193,8 @@ def create_job_script(num_nodes, hours, mins, benchmark):
 		args_list.append('--extrae')
 	args = ' '.join(args_list)
 	with open(job_script_name, 'w') as fp:
-		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args, qos=qos, hours=hours, mins=mins), file = fp)
+		print( t.substitute(num_nodes=num_nodes, job_name=job_name, args=args, qos=qos, hours=hours, mins=mins,
+							num_nodes_fast = num_nodes-1, num_nodes_slow=1), file = fp)
 	return job_script_name
 
 def submit_job_script(job_script_name):
@@ -324,6 +341,8 @@ def make():
 		ok = ok and micropp.make()
 	if ok and include_apps['nbody']:
 		ok = ok and nbody.make()
+	if ok and include_apps['nbodyslownord']:
+		ok = ok and nbodyslownord.make()
 	return ok
 
 def all_commands(num_nodes, hybrid_params, benchmark):
@@ -351,6 +370,9 @@ def all_commands(num_nodes, hybrid_params, benchmark):
 	if benchmark == 'nbody':
 		for cmd in nbody.commands(num_nodes, hybrid_params):
 			yield cmd
+	if benchmark == 'nbodyslownord':
+		for cmd in nbodyslownord.commands(num_nodes, hybrid_params):
+			yield cmd
 
 def get_est_time_secs(benchmark):
 	my_est_time_secs = 60 * 60 # start with one hour slack
@@ -368,6 +390,8 @@ def get_est_time_secs(benchmark):
 		my_est_time_secs += micropp.get_est_time_secs()
 	if benchmark == 'nbody':
 		my_est_time_secs += nbody.get_est_time_secs()
+	if benchmark == 'nbodyslownord':
+		my_est_time_secs += nbodyslownord.get_est_time_secs()
 	return my_est_time_secs
 
 
@@ -390,6 +414,8 @@ def all_num_nodes():
 		num_nodes.update(micropp.num_nodes())
 	if include_apps['nbody']:
 		num_nodes.update(nbody.num_nodes())
+	if include_apps['nbodyslownord']:
+		num_nodes.update(nbodyslownord.num_nodes())
 	return sorted(num_nodes)
 
 def generate_plots(results):
@@ -411,6 +437,8 @@ def generate_plots(results):
 		micropp.generate_plots(results, output_prefix_str)
 	if include_apps['nbody']:
 		nbody.generate_plots(results, output_prefix_str)
+	if include_apps['nbodyslownord']:
+		nbodyslownord.generate_plots(results, output_prefix_str)
 		
 
 def main(argv):
@@ -537,9 +565,19 @@ def main(argv):
 		# Already ran 'make' above
 		return 0
 	elif command == 'interactive' or command == 'batch':
+		
+		if include_apps['nbodyslownord']:
+			for benchmark in apps:
+				if benchmark != 'nbodyslownord':
+					if include_apps[benchmark]:
+						print('Cannot combine nbodyslownord with any other app')
+						return 2
 
 		if check_num_nodes.get_on_compute_node():
-			nums_nodes = [check_num_nodes.get_num_nodes()]
+			if include_apps['nbodyslownord']:
+				nums_nodes = [1+check_num_nodes.get_num_nodes()]
+			else:
+				nums_nodes = [check_num_nodes.get_num_nodes()]
 		else:
 			if not dry_run:
 				print('run-benchmarks.py interactive must be run on a compute node')
