@@ -43,6 +43,8 @@ def make():
 	
 est_time_secs = 0
 
+all_degrees = [1,2,3,4,6,8,10,16]
+
 # Return the list of all commands to run
 def commands(num_nodes, hybrid_params):
 	global est_time_secs
@@ -54,7 +56,7 @@ def commands(num_nodes, hybrid_params):
 	ngp = num_nodes * 2400
 	for appranks_per_node in (1,2):
 		vranks = num_nodes * appranks_per_node
-		degrees = [deg for deg in (1,2,3,4,6,8,10,16) if deg <= num_nodes]
+		degrees = [deg for deg in all_degrees if deg <= num_nodes]
 		if appranks_per_node > 1:
 			degrees = [0] + degrees
 		
@@ -158,9 +160,9 @@ def generate_plots(results, output_prefix_str):
 		print(f'Generating {filename}')
 		with PdfPages(filename) as pdf:
 			ind = None
-			width = 0.1
+			width = 0.06
 
-			fig = plt.figure(figsize=(6.0*0.9,3.2*0.9))
+			fig = plt.figure(figsize=(8.0,3.2*0.9))
 			ax = fig.add_subplot(111)
 
 			# All xticks: x positions
@@ -168,15 +170,12 @@ def generate_plots(results, output_prefix_str):
 			# All xticks: labels
 			xtickslabels = []
 
-			for kd, degreecode in enumerate(range(0,6)):
+			for kd, degreecode in enumerate([0] + all_degrees):
 
 				xx = []
 				avgs = []
 				stdevs = []
 				degree = degreecode if degreecode != 0 else 1
-				drom = 'true' if degreecode != 0 else 'false'
-				lewi = 'true' if degreecode != 0 else 'false'
-
 				for j, appranks_per_node in enumerate([1,2]):
 					xcurr = 6.5 * j
 					# Centre for each number of nodes
@@ -184,6 +183,16 @@ def generate_plots(results, output_prefix_str):
 					xx.extend(xnodes + (kd-1)*width*1.5)
 					xticksx.extend(xnodes)
 					xtickslabels.extend(numnodess)
+
+					if appranks_per_node == 1 and degreecode == 0:
+						# No DLB, but one apprank per node => use results with DLB anyway
+						# (not executed as DLB pointless)
+						drom = 'true'
+						lewi = 'true'
+					else:
+						drom = 'true' if degreecode != 0 else 'false'
+						lewi = 'true' if degreecode != 0 else 'false'
+
 
 					for kn, numnodes in enumerate(numnodess):
 						numappranks = appranks_per_node * numnodes
@@ -229,7 +238,7 @@ def generate_plots(results, output_prefix_str):
 
 			plt.xticks(xticksx, xtickslabels)
 			plt.ylim(0,37)
-			plt.legend(loc='lower right', ncol=2)
+			plt.legend(loc='lower right', ncol=5)
 			plt.ylabel('Exec. time per timestep (secs)')
 			#ax.xaxis.labelpad = 50
 			pdf.savefig()
