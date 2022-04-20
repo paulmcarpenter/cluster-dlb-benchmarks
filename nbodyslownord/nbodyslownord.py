@@ -19,7 +19,7 @@ command_template = ' '.join(['runhybrid.py --nodes $nodes --oneslow --hybrid-dir
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
-	return [2,4,8,16]
+	return [2,4,8,16,32]
 
 # Check whether the binary is missing
 def make():
@@ -46,22 +46,25 @@ def commands(num_nodes, hybrid_params):
 	t = Template(command_template)
 	vranks = num_nodes #* 2 # Start with fixed *2 oversubscription
 
-	degrees = [deg for deg in (1,2,3,4,6) if deg <= num_nodes]
-
-	for appranks_per_node in (1,2):
+	for appranks_per_node in [2]: #[1,2]:
+		degrees = [deg for deg in (1,2,3,4,6) if deg <= num_nodes]
+		if appranks_per_node > 1:
+			degrees = [0] + degrees
 		vranks = num_nodes * appranks_per_node #* 2 # Start with fixed *2 oversubscription
-		for degree in degrees:
+
+		for degreecode in degrees:
+			degree = degreecode if degreecode != 0 else 1
 			if degree == 1:
 				policies = ['local']
 			else:
 				policies = ['global']
 			for policy in policies:
-				for drom in ['true']: # ['true','false'] if degree != 1
-					for lewi in ['true']: # ['true','false'] if degree != 1
-						nbodies = num_nodes * 12500
-						cmd = t.substitute(nodes=num_nodes, vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, nbodies=nbodies)
-						est_time_secs += 60 # Approx. 6 seconds per iteration
-						yield cmd
+				drom = 'true' if degreecode != 0 else 'false'
+				lewi = 'true' if degreecode != 0 else 'false'
+				nbodies = num_nodes * 20000
+				cmd = t.substitute(nodes=num_nodes, vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, nbodies=nbodies)
+				est_time_secs += 600 # Approx. 60 seconds per iteration
+				yield cmd
 
 def get_est_time_secs():
 	global est_time_secs
@@ -95,8 +98,6 @@ def generate_plots(results, output_prefix_str):
 	for policy in ['local', 'global']:
 		filename = f'output/{output_prefix_str}nbodyslownord-barcharts-{policy}.pdf'
 		with PdfPages(filename) as pdf:
-			lewi = 'true'
-			drom = 'true'
 			ind = None
 			width = 0.1
 			fig = plt.figure(figsize=(6.0*0.9,3.2*0.9))
@@ -107,13 +108,17 @@ def generate_plots(results, output_prefix_str):
 			# All xticks: labels
 			xtickslabels = []
 
-			for kd, degree in enumerate([1,2,3,4,6]):
+			for kd, degreecode in enumerate([0,1,2,3,6]):
 
 				xx = []
 				avgs = []
 				stdevs = []
+				degree = degreecode if degreecode != 0 else 1
+				drom = 'true' if degreecode != 0 else 'false'
+				lewi = 'true' if degreecode != 0 else 'false'
 
-				for j, appranks_per_node in enumerate([1,2]):
+
+				for j, appranks_per_node in enumerate([2]): #,2]):
 					xcurr = 6.5 * j
 					# Centre for each number of nodes
 					xnodes = np.arange(len(numnodess)) + xcurr
@@ -123,7 +128,7 @@ def generate_plots(results, output_prefix_str):
 
 					for kn, numnodes in enumerate(numnodess):
 						numappranks = appranks_per_node * numnodes
-						print(f'{policy} appranks: {numappranks} vranks: {numnodes} {degree}')
+						print(f'{policy} appranks: {numappranks} vranks: {numnodes} {degreecode}')
 						curr1 = [ (r,times) for (r,times) in results \
 									if r['appranks'] == numappranks \
 									   and r['degree'] == degree \
@@ -152,15 +157,16 @@ def generate_plots(results, output_prefix_str):
 
 					if kd == 0:
 						xmid = average(xnodes)
-						plt.text(xmid, -6, f'n-body ({appranks_per_node} appranks per node)', ha ='center')
+						ypos = -20 # -6
+						plt.text(xmid, ypos, f'n-body ({appranks_per_node} appranks per node)', ha ='center')
 
 				print(f'Plot {xx} {avgs} {stdevs}')
 				print(len(xx), len(avgs), len(stdevs))
-				legend = f'degree {degree}'
+				legend = f'degree {degree}' if degreecode > 0 else 'No DLB'
 				plt.bar(xx, avgs, width, yerr=stdevs, label=legend)
 
 			plt.xticks(xticksx, xtickslabels)
-			plt.legend(loc='upper right')
+			plt.legend(loc='upper right', ncol=2)
 			plt.ylabel('Exec. time per timestep (secs)')
 			#ax.xaxis.labelpad = 50
 			pdf.savefig()
@@ -172,6 +178,21 @@ def generate_plots(results, output_prefix_str):
 if __name__ == '__main__':
 	sys.exit(main(sys.argv))
 	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
