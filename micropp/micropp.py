@@ -210,7 +210,11 @@ def generate_plots(results, output_prefix_str):
 
 					if kd == 0:
 						xmid = average(xnodes)
-						plt.text(xmid, -6, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
+						#if policy == 'global':
+						ypos = -6
+						#else:
+						#	ypos = -9
+						plt.text(xmid, ypos, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
 
 				print(f'Plot {xx} {avgs} {stdevs}')
 				print(len(xx), len(avgs), len(stdevs))
@@ -218,7 +222,8 @@ def generate_plots(results, output_prefix_str):
 				plt.bar(xx, avgs, width, yerr=stdevs, label=legend)
 
 			plt.xticks(xticksx, xtickslabels)
-			plt.legend(loc='upper right')
+			plt.ylim(0,37)
+			plt.legend(loc='lower right', ncol=2)
 			plt.ylabel('Exec. time per timestep (secs)')
 			#ax.xaxis.labelpad = 50
 			pdf.savefig()
