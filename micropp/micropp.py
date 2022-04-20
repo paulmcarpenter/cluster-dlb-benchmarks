@@ -54,17 +54,22 @@ def commands(num_nodes, hybrid_params):
 	ngp = num_nodes * 2400
 	for appranks_per_node in (1,2):
 		vranks = num_nodes * appranks_per_node
-		for degree in list(range(1, min(6,num_nodes+1))):
+		degrees = [deg for deg in (1,2,3,4,6,8,10,16) if deg <= num_nodes]
+		if appranks_per_node > 1:
+			degrees = [0] + degrees
+		
+		for degreecode in degrees:
+			degree = degreecode if degreecode != 0 else 1
 			if degree == 1:
 				policies = ['local']
 			else:
 				policies = ['local', 'global']
 			for policy in policies:
-				for drom in ['true']: # ['true','false'] if degree != 1
-					for lewi in ['true']: # ['true','false'] if degree != 1
-						cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, ngp=ngp)
-						est_time_secs += 12 * 60 # a guess!
-						yield cmd
+				drom = 'true' if degreecode != 0 else 'false'
+				lewi = 'true' if degreecode != 0 else 'false'
+				cmd = t.substitute(vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, ngp=ngp)
+				est_time_secs += 12 * 60 # a guess!
+				yield cmd
 
 def get_est_time_secs():
 	global est_time_secs
@@ -152,8 +157,6 @@ def generate_plots(results, output_prefix_str):
 		filename = f'output/{output_prefix_str}micropp-barcharts-{policy}.pdf'
 		print(f'Generating {filename}')
 		with PdfPages(filename) as pdf:
-			lewi = 'true'
-			drom = 'true'
 			ind = None
 			width = 0.1
 
@@ -165,11 +168,14 @@ def generate_plots(results, output_prefix_str):
 			# All xticks: labels
 			xtickslabels = []
 
-			for kd, degree in enumerate(range(1,6)):
+			for kd, degreecode in enumerate(range(0,6)):
 
 				xx = []
 				avgs = []
 				stdevs = []
+				degree = degreecode if degreecode != 0 else 1
+				drom = 'true' if degreecode != 0 else 'false'
+				lewi = 'true' if degreecode != 0 else 'false'
 
 				for j, appranks_per_node in enumerate([1,2]):
 					xcurr = 6.5 * j
@@ -218,7 +224,7 @@ def generate_plots(results, output_prefix_str):
 
 				print(f'Plot {xx} {avgs} {stdevs}')
 				print(len(xx), len(avgs), len(stdevs))
-				legend = f'degree {degree}'
+				legend = f'degree {degree}' if degreecode > 0 else 'No DLB'
 				plt.bar(xx, avgs, width, yerr=stdevs, label=legend)
 
 			plt.xticks(xticksx, xtickslabels)
