@@ -15,7 +15,7 @@ except ImportError:
 
 # Template to create the command to run the benchmark
 command_template = ' '.join(['runhybrid.py --nodes $nodes --oneslow --hybrid-directory $$hybrid_directory $hybrid_params --debug false --vranks $vranks --$policy --degree $degree --monitor 30 --local-period 30 --config-override dlb.enable_drom=$drom,dlb.enable_lewi=$lewi',
-				             'build/n_body -N $nbodies -s 10 -v'])
+				             'build/n_body -N $nbodies -s 10 -v -A'])
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
@@ -48,18 +48,20 @@ def commands(num_nodes, hybrid_params):
 
 	degrees = [deg for deg in (1,2,3,4,6) if deg <= num_nodes]
 
-	for degree in degrees:
-		if degree == 1:
-			policies = ['local']
-		else:
-			policies = ['global']
-		for policy in policies:
-			for drom in ['true']: # ['true','false'] if degree != 1
-				for lewi in ['true']: # ['true','false'] if degree != 1
-					nbodies = num_nodes * 12500
-					cmd = t.substitute(nodes=num_nodes, vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, nbodies=nbodies)
-					est_time_secs += 60 # Approx. 6 seconds per iteration
-					yield cmd
+	for appranks_per_node in (1,2):
+		vranks = num_nodes * appranks_per_node #* 2 # Start with fixed *2 oversubscription
+		for degree in degrees:
+			if degree == 1:
+				policies = ['local']
+			else:
+				policies = ['global']
+			for policy in policies:
+				for drom in ['true']: # ['true','false'] if degree != 1
+					for lewi in ['true']: # ['true','false'] if degree != 1
+						nbodies = num_nodes * 12500
+						cmd = t.substitute(nodes=num_nodes, vranks=vranks, degree=degree, drom=drom, lewi=lewi, policy=policy, hybrid_params=hybrid_params, nbodies=nbodies)
+						est_time_secs += 60 # Approx. 6 seconds per iteration
+						yield cmd
 
 def get_est_time_secs():
 	global est_time_secs
@@ -138,7 +140,7 @@ def generate_plots(results, output_prefix_str):
 										   if int(r['step']) >= nsteps*0.25  ] 
 							vals = []
 							for step in range(0,nsteps):
-								curr2 = [average(times) for r,times in curr if int(r['step']) == step]
+								curr2 = [max(times) for r,times in curr if int(r['step']) == step]
 								if len(curr2) > 0:
 									vals.append(max(curr2))
 
@@ -170,5 +172,6 @@ def generate_plots(results, output_prefix_str):
 if __name__ == '__main__':
 	sys.exit(main(sys.argv))
 	
+
 
 
