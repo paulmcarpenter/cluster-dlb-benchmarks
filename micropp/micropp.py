@@ -177,7 +177,7 @@ def generate_plots(results, output_prefix_str):
 				stdevs = []
 				degree = degreecode if degreecode != 0 else 1
 				for j, appranks_per_node in enumerate([1,2]):
-					xcurr = 6.5 * j
+					xcurr = 6.0 * j
 					# Centre for each number of nodes
 					xnodes = np.arange(len(numnodess)) + xcurr
 					xx.extend(xnodes + (kd-1)*width*1.5)
@@ -229,7 +229,12 @@ def generate_plots(results, output_prefix_str):
 						ypos = -6
 						#else:
 						#	ypos = -9
-						plt.text(xmid, ypos, f'MicroPP ({appranks_per_node} appranks per node)', ha ='center')
+						if appranks_per_node > 1:
+							label = f'MicroPP ({appranks_per_node} appranks per node)'
+						else:
+							label = f'MicroPP (1 apprank per node)'
+
+						plt.text(xmid, ypos, label, ha ='center')
 
 				print(f'Plot {xx} {avgs} {stdevs}')
 				print(len(xx), len(avgs), len(stdevs))

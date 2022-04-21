@@ -34,7 +34,7 @@ command_template = ' '.join(['runhybrid.py --hybrid-directory $$hybrid_directory
 
 # For which numbers of nodes is this benchmark valid
 def num_nodes():
-	return [2,4,8,16]
+	return [2,4,8,16,32]
 
 # Check whether the binary is missing
 def make():
