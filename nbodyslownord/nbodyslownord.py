@@ -93,6 +93,7 @@ def generate_plots(results, output_prefix_str):
 	degrees = get_values(results, 'degree')
 	apprankss = get_values(results, 'appranks')
 	numnodess = get_values(results, 'numnodes')
+	numnodess = [num_nodes for num_nodes in numnodess if num_nodes <= 16]
 
 	# Generate barcharts
 	for policy in ['local', 'global']:
@@ -100,7 +101,7 @@ def generate_plots(results, output_prefix_str):
 		with PdfPages(filename) as pdf:
 			ind = None
 			width = 0.1
-			fig = plt.figure(figsize=(6.0*0.9,3.2*0.9))
+			fig = plt.figure(figsize=(4.7,2.7))
 			ax = fig.add_subplot(111)
 
 			# All xticks: x positions
@@ -157,7 +158,7 @@ def generate_plots(results, output_prefix_str):
 
 					if kd == 0:
 						xmid = average(xnodes)
-						ypos = -20 # -6
+						ypos = -25
 						plt.text(xmid, ypos, f'n-body ({appranks_per_node} appranks per node)', ha ='center')
 
 				print(f'Plot {xx} {avgs} {stdevs}')
@@ -166,7 +167,7 @@ def generate_plots(results, output_prefix_str):
 				plt.bar(xx, avgs, width, yerr=stdevs, label=legend)
 
 			plt.xticks(xticksx, xtickslabels)
-			plt.legend(loc='upper right', ncol=2)
+			plt.legend(loc='upper left', ncol=2)
 			plt.ylabel('Exec. time per timestep (secs)')
 			#ax.xaxis.labelpad = 50
 			pdf.savefig()
